@@ -1400,22 +1400,7 @@ function OplDetail() {
                 />
               </Box>
 
-              {isDesktop && step.photos.length > 1
-                ? (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: { sm: 'repeat(2, 1fr)', md: 'repeat(auto-fill, minmax(250px, 1fr))' }, gap: 1, my: 1.5 }}>
-                      {step.photos.map((p, i) => (
-                        <Box key={p.id} sx={{ borderRadius: 2, overflow: 'hidden', bgcolor: '#f5f5f5', aspectRatio: '4/3' }}>
-                          <img
-                            src={`${photoBase}/photos/${p.id}`}
-                            alt={`Фото ${i + 1}`}
-                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                          />
-                        </Box>
-                      ))}
-                    </Box>
-                  )
-                : <PhotoCarousel photos={step.photos} photoBaseUrl={photoBase} />
-              }
+              <PhotoCarousel photos={step.photos} photoBaseUrl={photoBase} />
             </CardContent>
           </Card>
           </div>

@@ -10,47 +10,49 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 
-_styles = getSampleStyleSheet()
-_styles.add(ParagraphStyle(
-    name='Title',
-    fontName='Helvetica-Bold',
-    fontSize=16,
-    leading=20,
-    spaceAfter=6,
-    textColor=colors.HexColor('#1976d2'),
-))
-_styles.add(ParagraphStyle(
-    name='Subtitle',
-    fontName='Helvetica-Bold',
-    fontSize=11,
-    leading=14,
-    spaceAfter=2,
-    textColor=colors.HexColor('#333333'),
-))
-_styles.add(ParagraphStyle(
-    name='Body',
-    fontName='Helvetica',
-    fontSize=10,
-    leading=13,
-    spaceAfter=4,
-    textColor=colors.HexColor('#555555'),
-))
-_styles.add(ParagraphStyle(
-    name='Small',
-    fontName='Helvetica',
-    fontSize=8,
-    leading=10,
-    spaceAfter=4,
-    textColor=colors.HexColor('#888888'),
-))
-_styles.add(ParagraphStyle(
-    name='Footer',
-    fontName='Helvetica',
-    fontSize=8,
-    leading=10,
-    textColor=colors.HexColor('#999999'),
-    alignment=TA_CENTER,
-))
+_styles = {
+    'Title': ParagraphStyle(
+        'opl_title',
+        fontName='Helvetica-Bold',
+        fontSize=16,
+        leading=20,
+        spaceAfter=6,
+        textColor=colors.HexColor('#1976d2'),
+    ),
+    'Subtitle': ParagraphStyle(
+        'opl_subtitle',
+        fontName='Helvetica-Bold',
+        fontSize=11,
+        leading=14,
+        spaceAfter=2,
+        textColor=colors.HexColor('#333333'),
+    ),
+    'Body': ParagraphStyle(
+        'opl_body',
+        fontName='Helvetica',
+        fontSize=10,
+        leading=13,
+        spaceAfter=4,
+        textColor=colors.HexColor('#555555'),
+    ),
+    'Small': ParagraphStyle(
+        'opl_small',
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        spaceAfter=4,
+        textColor=colors.HexColor('#888888'),
+    ),
+    'Footer': ParagraphStyle(
+        'opl_footer',
+        fontName='Helvetica',
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor('#999999'),
+        alignment=TA_CENTER,
+    ),
+    'Normal': getSampleStyleSheet()['Normal'],
+}
 
 _CONTENT_WIDTH = A4[0] - 40*mm
 _NUM_BOX = 18*mm

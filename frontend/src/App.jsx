@@ -199,9 +199,12 @@ function OplList() {
   const [currentPage, setCurrentPage] = useState(1);
   const [total, setTotal] = useState(0);
   const ITEMS_PER_PAGE = 10;
-  const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null });
+  const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null, remaining: 5 });
+  const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
+  const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
   const debounceRef = useRef(null);
   const undoTimerRef = useRef(null);
+  const undoIntervalRef = useRef(null);
   const navigate = useNavigate();
 
   const fetchOpls = useCallback(async (query) => {
@@ -253,8 +256,36 @@ function OplList() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
       if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
     };
   }, [searchQuery, fetchOpls]);
+
+  useEffect(() => {
+    if (undoDelete.open) {
+      undoIntervalRef.current = setInterval(() => {
+        setUndoDelete(prev => {
+          if (prev.remaining <= 1) {
+            if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
+            undoIntervalRef.current = null;
+            return { ...prev, remaining: 0 };
+          }
+          return { ...prev, remaining: prev.remaining - 1 };
+        });
+      }, 1000);
+    }
+    return () => {
+      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
+      undoIntervalRef.current = null;
+    };
+  }, [undoDelete.open]);
+
+  const handleDeleteClick = (id) => {
+    setDeleteConfirm({ open: true, id });
+  };
+
+  const handleDeleteConfirm = () => {
+    setDeleteConfirm({ open: false, id: null });
+  };
 
   const handleDelete = async (id) => {
     const oplToDelete = opls.find(o => o.id === id);
@@ -262,21 +293,31 @@ function OplList() {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setOpls(prev => prev.filter(o => o.id !== id));
     setTotal(prev => Math.max(0, prev - 1));
-    setUndoDelete({ open: true, opl: oplToDelete, id });
+    setUndoDelete({ open: true, opl: oplToDelete, id, remaining: 5 });
     undoTimerRef.current = setTimeout(async () => {
       await fetch(`${API}/opls/${id}`, { method: 'DELETE' });
       setUndoDelete({ open: false, opl: null, id: null });
       undoTimerRef.current = null;
+      setToast({ open: true, msg: 'Удалено', severity: 'info' });
       fetchOpls();
     }, 5000);
   };
 
   const handleUndoDelete = () => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
+    if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
+    undoIntervalRef.current = null;
     setOpls(prev => [undoDelete.opl, ...prev]);
     setTotal(prev => prev + 1);
     setUndoDelete({ open: false, opl: null, id: null });
     undoTimerRef.current = null;
+    setToast({ open: true, msg: 'Восстановлено', severity: 'success' });
+  };
+
+  const handleSnackbarClose = () => {
+    if (undoIntervalRef.current) clearInterval(undoIntervalRef.current);
+    undoIntervalRef.current = null;
+    setUndoDelete({ open: false, opl: null, id: null });
   };
 
   const handleCreate = async (createdOpl, stepPhotos, selectedTags) => {
@@ -458,7 +499,7 @@ function OplList() {
                 </Box>
                 <IconButton
                   sx={{ color: '#aaa', ml: 1 }}
-                  onClick={(e) => { e.stopPropagation(); handleDelete(opl.id); }}
+                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(opl.id); }}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -500,18 +541,34 @@ function OplList() {
           fetchOpls();
         }}
       />
+      <ConfirmDialog
+        open={deleteConfirm.open}
+        title="Удалить инструкцию?"
+        message={`Вы уверены, что хотите удалить «${opls.find(o => o.id === deleteConfirm.id)?.title}»?`}
+        onConfirm={() => { const id = deleteConfirm.id; handleDeleteConfirm(); handleDelete(id); }}
+        onCancel={handleDeleteConfirm}
+      />
       <Snackbar
         open={undoDelete.open}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        onClose={handleUndoDelete}
-        autoHideDuration={5000}
+        onClose={handleSnackbarClose}
       >
-        <Alert severity="info" onClose={handleUndoDelete} action={
+        <Alert severity="info" onClose={handleSnackbarClose} action={
           <Button size="small" onClick={handleUndoDelete} sx={{ color: 'white' }}>
             Отменить
           </Button>
         }>
-          {undoDelete.opl?.title} удалена
+          {undoDelete.opl?.title} удалена — {undoDelete.remaining}с
+        </Alert>
+      </Snackbar>
+      <Snackbar
+        open={toast.open}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        autoHideDuration={2000}
+        onClose={() => setToast({ ...toast, open: false })}
+      >
+        <Alert severity={toast.severity} onClose={() => setToast({ ...toast, open: false })}>
+          {toast.msg}
         </Alert>
       </Snackbar>
     </Box>

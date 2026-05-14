@@ -1,3 +1,4 @@
+import os
 import uuid
 from io import BytesIO
 from datetime import datetime
@@ -9,11 +10,26 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+
+try:
+    pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVu-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVu-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
+    pdfmetrics.registerFont(TTFont('DejaVu-BoldOblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf'))
+except Exception:
+    import warnings
+    warnings.warn("DejaVu fonts not found, falling back to Helvetica (no Cyrillic support)")
+
+_BOLD = 'Helvetica-Bold' if 'DejaVu-Bold' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu-Bold'
+_REG = 'Helvetica' if 'DejaVu' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu'
+_OBLIQUE = 'Helvetica-Oblique' if 'DejaVu-Oblique' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu-Oblique'
 
 _styles = {
     'Title': ParagraphStyle(
         'opl_title',
-        fontName='Helvetica-Bold',
+        fontName=_BOLD,
         fontSize=16,
         leading=20,
         spaceAfter=6,
@@ -21,7 +37,7 @@ _styles = {
     ),
     'Subtitle': ParagraphStyle(
         'opl_subtitle',
-        fontName='Helvetica-Bold',
+        fontName=_BOLD,
         fontSize=11,
         leading=14,
         spaceAfter=2,
@@ -29,7 +45,7 @@ _styles = {
     ),
     'Body': ParagraphStyle(
         'opl_body',
-        fontName='Helvetica',
+        fontName=_REG,
         fontSize=10,
         leading=13,
         spaceAfter=4,
@@ -37,7 +53,7 @@ _styles = {
     ),
     'Small': ParagraphStyle(
         'opl_small',
-        fontName='Helvetica',
+        fontName=_REG,
         fontSize=8,
         leading=10,
         spaceAfter=4,
@@ -45,13 +61,18 @@ _styles = {
     ),
     'Footer': ParagraphStyle(
         'opl_footer',
-        fontName='Helvetica',
+        fontName=_REG,
         fontSize=8,
         leading=10,
         textColor=colors.HexColor('#999999'),
         alignment=TA_CENTER,
     ),
-    'Normal': getSampleStyleSheet()['Normal'],
+    'Normal': ParagraphStyle(
+        'opl_normal',
+        fontName=_REG,
+        fontSize=10,
+        leading=13,
+    ),
 }
 
 _CONTENT_WIDTH = A4[0] - 40*mm
@@ -102,7 +123,7 @@ def _make_num_box(number):
         str(number),
         ParagraphStyle(
             f'n_{uuid.uuid4().hex}',
-            fontName='Helvetica-Bold',
+            fontName=_BOLD,
             fontSize=14,
             textColor=colors.white,
             alignment=TA_CENTER,

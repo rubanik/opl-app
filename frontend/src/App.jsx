@@ -62,7 +62,6 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import HomeIcon from '@mui/icons-material/Home';
 import CodeIcon from '@mui/icons-material/Code';
-import CloseIcon from '@mui/icons-material/Close';
 import { QRCodeSVG } from 'qrcode.react';
 
 const API = '/api';
@@ -850,92 +849,6 @@ function PhotoCarousel({ photos, photoBaseUrl, onPhotoClick }) {
   );
 }
 
-/* ---- Photo Lightbox ---- */
-function PhotoLightbox({ open, onClose, photos, currentIdx, photoBaseUrl }) {
-  const [lightboxIdx, setLightboxIdx] = useState(currentIdx);
-
-  useEffect(() => {
-    if (open) setLightboxIdx(currentIdx);
-  }, [open, currentIdx]);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowLeft') setLightboxIdx((i) => (i - 1 + photos.length) % photos.length);
-      if (e.key === 'ArrowRight') setLightboxIdx((i) => (i + 1) % photos.length);
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [open, photos.length, onClose]);
-
-  return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="xl"
-      PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none' } }}
-    >
-      <Box sx={{ position: 'relative', width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <IconButton
-          sx={{ position: 'absolute', top: 16, right: 16, color: 'white', zIndex: 2 }}
-          onClick={onClose}
-          size="large"
-        >
-          <CloseIcon fontSize="large" />
-        </IconButton>
-        <Box
-          sx={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-          onClick={onClose}
-        >
-          <img
-            src={`${photoBaseUrl}/photos/${photos[lightboxIdx]?.id}`}
-            alt=""
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              maxWidth: '90%',
-              maxHeight: '90vh',
-              objectFit: 'contain',
-              cursor: 'default',
-              borderRadius: 4,
-            }}
-          />
-        </Box>
-        {photos.length > 1 && (
-          <>
-            <IconButton
-              sx={{
-                position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)',
-                color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-              }}
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i - 1 + photos.length) % photos.length); }}
-              size="large"
-            >
-              <ChevronLeftIcon fontSize="large" />
-            </IconButton>
-            <IconButton
-              sx={{
-                position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-                color: 'white', bgcolor: 'rgba(0,0,0,0.5)', '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-              }}
-              onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i + 1) % photos.length); }}
-              size="large"
-            >
-              <ChevronRightIcon fontSize="large" />
-            </IconButton>
-          </>
-        )}
-        <Box sx={{
-          position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)',
-          bgcolor: 'rgba(0,0,0,0.5)', color: 'white', px: 2, py: 0.5, borderRadius: 2, fontSize: 14,
-        }}>
-          {lightboxIdx + 1} / {photos.length}
-        </Box>
-      </Box>
-    </Dialog>
-  );
-}
-
 /* ---- OPL Detail ---- */
 function OplDetail() {
   const { id } = useParams();
@@ -949,7 +862,6 @@ function OplDetail() {
   const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
   const [confirm, setConfirm] = useState({ open: false, stepId: null, photoId: null, deleteStepIdx: null });
-  const [lightbox, setLightbox] = useState({ open: false, stepId: null, photoIdx: 0 });
   const [activeStep, setActiveStep] = useState(-1);
   const [draggedIdx, setDraggedIdx] = useState(null);
   const stepsRefs = useRef([]);
@@ -1425,11 +1337,7 @@ function OplDetail() {
                 ? (
                     <Box sx={{ display: 'grid', gridTemplateColumns: { sm: 'repeat(2, 1fr)', md: 'repeat(auto-fill, minmax(250px, 1fr))' }, gap: 1, my: 1.5 }}>
                       {step.photos.map((p, i) => (
-                        <Box
-                          key={p.id}
-                          sx={{ borderRadius: 2, overflow: 'hidden', bgcolor: '#f5f5f5', aspectRatio: '4/3', cursor: 'pointer' }}
-                          onClick={() => setLightbox({ open: true, stepId: step.id, photoIdx: i })}
-                        >
+                        <Box key={p.id} sx={{ borderRadius: 2, overflow: 'hidden', bgcolor: '#f5f5f5', aspectRatio: '4/3' }}>
                           <img
                             src={`${photoBase}/photos/${p.id}`}
                             alt={`Фото ${i + 1}`}
@@ -1439,7 +1347,7 @@ function OplDetail() {
                       ))}
                     </Box>
                   )
-                : <PhotoCarousel photos={step.photos} photoBaseUrl={photoBase} onPhotoClick={(i) => setLightbox({ open: true, stepId: step.id, photoIdx: i })} />
+                : <PhotoCarousel photos={step.photos} photoBaseUrl={photoBase} />
               }
             </CardContent>
           </Card>
@@ -1486,15 +1394,6 @@ function OplDetail() {
         onConfirm={confirmDeletePhoto}
         onCancel={() => setConfirm({ open: false, stepId: null, photoId: null })}
       />
-      {opl && (
-        <PhotoLightbox
-          open={lightbox.open}
-          onClose={() => setLightbox({ open: false, stepId: null, photoIdx: 0 })}
-          photos={opl.steps.find(s => s.id === lightbox.stepId)?.photos || []}
-          currentIdx={lightbox.photoIdx}
-          photoBaseUrl={photoBase}
-        />
-      )}
     </Box>
   );
 }

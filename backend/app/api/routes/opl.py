@@ -12,27 +12,33 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate
-from app.services.markdown import render_markdown
+from app.services.pdf_export import build_pdf as build_pdf_service
 import qrcode
 
 router = APIRouter(prefix="/api/opls", tags=["opl"])
 
 
-@router.get("/", response_model=list[OplListOut])
+@router.get("/")
 def list_opls(
     title: str | None = Query(None),
     description: str | None = Query(None),
+    tag_ids: list[uuid.UUID] | None = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
 ):
     stmt = select(Opl)
     conditions = []
     if title:
-        conditions.append(func.lower(Opl.title).like(f"%{title.lower()}%"))
+        conditions.append(Opl.title.ilike(func.concat('%', title, '%')))
     if description:
-        conditions.append(func.lower(Opl.description).like(f"%{description.lower()}%"))
+        conditions.append(Opl.description.ilike(func.concat('%', description, '%')))
+    if tag_ids and len(tag_ids) > 0:
+        stmt = stmt.join(OplTagLink).where(OplTagLink.tag_id.in_(tag_ids))
     if conditions:
         stmt = stmt.where(or_(*conditions))
-    stmt = stmt.order_by(Opl.created_at.desc())
+    total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar()
+    stmt = stmt.order_by(Opl.created_at.desc()).offset(skip).limit(limit)
     rows = db.execute(stmt).scalars().all()
     opl_ids = [r.id for r in rows]
     step_counts = {}
@@ -56,7 +62,7 @@ def list_opls(
             created_at=r.created_at, updated_at=r.updated_at,
             step_count=step_counts.get(r.id, 0), tags=tag_map.get(r.id, [])
         ))
-    return result
+    return {"items": result, "total": total, "skip": skip, "limit": limit}
 
 
 @router.post("/", response_model=OplOut, status_code=201)
@@ -296,3 +302,37 @@ def link_tags(opl_id: uuid.UUID, body: OplTagLinkCreate, db: Session = Depends(g
         select(OplTag).join(OplTagLink).where(OplTagLink.opl_id == opl_id)
     ).scalars().all()
     return {"ok": True, "tags": [{"id": t.id, "name": t.name, "color": t.color} for t in tags]}
+
+
+@router.get("/{opl_id}/pdf")
+def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
+    opl = db.execute(
+        select(Opl).options(
+            joinedload(Opl.steps),
+            joinedload(Opl.tags)
+        ).where(Opl.id == opl_id)
+    ).unique().scalar_one_or_none()
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    from app.services.markdown import render_markdown as render_md
+    steps_data = []
+    for s in opl.steps:
+        steps_data.append({
+            'step_number': s.step_number,
+            'title': s.title,
+            'description': s.description,
+            'description_html': render_md(s.description),
+            'duration_sec': s.duration_sec,
+        })
+    tags_data = [{"name": t.name, "color": t.color} for t in opl.tags]
+    opl_data = {
+        'title': opl.title,
+        'description': opl.description,
+        'created_at': opl.created_at,
+    }
+    buf = build_pdf_service(opl_data, steps_data, tags_data)
+    return Response(
+        content=buf.read(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="opl_{opl_id}.pdf"'},
+    )

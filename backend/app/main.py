@@ -37,6 +37,11 @@ def init_db():
         migrate_title()
     except Exception:
         pass
+    try:
+        from app.db.migrate_indexes import upgrade as migrate_indexes
+        migrate_indexes()
+    except Exception:
+        pass
 
 
 def create_app(init: bool = True) -> FastAPI:

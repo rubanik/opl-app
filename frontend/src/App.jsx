@@ -59,6 +59,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CopyLinkIcon from '@mui/icons-material/Link';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import HomeIcon from '@mui/icons-material/Home';
 import CodeIcon from '@mui/icons-material/Code';
@@ -196,6 +197,7 @@ function OplList() {
   const [selectedTagIds, setSelectedTagIds] = useState([]);
   const [sortBy, setSortBy] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
   const ITEMS_PER_PAGE = 10;
   const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null });
   const debounceRef = useRef(null);
@@ -209,24 +211,27 @@ function OplList() {
       params.set('title', query);
       params.set('description', query);
     }
+    if (selectedTagIds.length > 0) {
+      selectedTagIds.forEach(tid => params.append('tag_ids', tid));
+    }
+    params.set('skip', String((currentPage - 1) * ITEMS_PER_PAGE));
+    params.set('limit', String(ITEMS_PER_PAGE));
     const res = await fetch(`${API}/opls/?${params.toString()}`);
     let data = await res.json();
-    if (selectedTagIds.length > 0) {
-      data = data.filter(opl => (opl.tags || []).some(t => selectedTagIds.includes(t.id)));
-    }
+    setTotal(data.total);
+    let items = data.items;
     switch (sortBy) {
-      case 'newest': data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
-      case 'oldest': data.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
-      case 'nameAZ': data.sort((a, b) => a.title.localeCompare(b.title, 'ru')); break;
-      case 'nameZA': data.sort((a, b) => b.title.localeCompare(a.title, 'ru')); break;
+      case 'newest': items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
+      case 'oldest': items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
+      case 'nameAZ': items.sort((a, b) => a.title.localeCompare(b.title, 'ru')); break;
+      case 'nameZA': items.sort((a, b) => b.title.localeCompare(a.title, 'ru')); break;
       default: break;
     }
-    setOpls(data);
+    setOpls(items);
     setLoading(false);
-  }, [selectedTagIds, sortBy]);
+  }, [selectedTagIds, sortBy, currentPage]);
 
-  const totalPages = Math.ceil(opls.length / ITEMS_PER_PAGE);
-  const pagedOpls = opls.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   useEffect(() => { fetchOpls(); }, [fetchOpls]);
 
@@ -256,17 +261,20 @@ function OplList() {
     if (!oplToDelete) return;
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setOpls(prev => prev.filter(o => o.id !== id));
+    setTotal(prev => Math.max(0, prev - 1));
     setUndoDelete({ open: true, opl: oplToDelete, id });
     undoTimerRef.current = setTimeout(async () => {
       await fetch(`${API}/opls/${id}`, { method: 'DELETE' });
       setUndoDelete({ open: false, opl: null, id: null });
       undoTimerRef.current = null;
+      fetchOpls();
     }, 5000);
   };
 
   const handleUndoDelete = () => {
     if (undoTimerRef.current) clearTimeout(undoTimerRef.current);
     setOpls(prev => [undoDelete.opl, ...prev]);
+    setTotal(prev => prev + 1);
     setUndoDelete({ open: false, opl: null, id: null });
     undoTimerRef.current = null;
   };
@@ -404,7 +412,7 @@ function OplList() {
             ))}
           </>
         )}
-        {!loading && pagedOpls.map((opl) => (
+        {!loading && opls.map((opl) => (
           <Card
             key={opl.id}
             sx={{
@@ -1256,6 +1264,9 @@ function OplDetail() {
         <Typography variant={{ xs: 'h6', sm: 'h5' }} sx={{ fontWeight: 700, flex: 1 }}>
           {opl.title}
         </Typography>
+        <IconButton size="small" onClick={() => window.open(`${API}/opls/${id}/pdf`, '_blank')}>
+          <PictureAsPdfIcon />
+        </IconButton>
         <IconButton size="small" onClick={() => setQrOpen(true)}>
           <QrCodeIcon />
         </IconButton>

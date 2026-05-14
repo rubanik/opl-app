@@ -12,7 +12,6 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate
-from app.services.pdf_export import build_pdf as build_pdf_service
 import qrcode
 
 router = APIRouter(prefix="/api/opls", tags=["opl"])
@@ -330,7 +329,8 @@ def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
         'description': opl.description,
         'created_at': opl.created_at,
     }
-    buf = build_pdf_service(opl_data, steps_data, tags_data)
+    from app.services.pdf_export import build_pdf
+    buf = build_pdf(opl_data, steps_data, tags_data)
     return Response(
         content=buf.read(),
         media_type="application/pdf",

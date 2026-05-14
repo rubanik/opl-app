@@ -8,14 +8,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable
 from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.cidfonts import UnicodeCIDFont
 from reportlab.lib.enums import TA_CENTER
 
-pdfmetrics.registerFont(UnicodeCIDFont('Helvetica'))
-
-styles = getSampleStyleSheet()
-styles.add(ParagraphStyle(
+_styles = getSampleStyleSheet()
+_styles.add(ParagraphStyle(
     name='Title',
     fontName='Helvetica-Bold',
     fontSize=16,
@@ -23,7 +19,7 @@ styles.add(ParagraphStyle(
     spaceAfter=6,
     textColor=colors.HexColor('#1976d2'),
 ))
-styles.add(ParagraphStyle(
+_styles.add(ParagraphStyle(
     name='Subtitle',
     fontName='Helvetica-Bold',
     fontSize=11,
@@ -31,7 +27,7 @@ styles.add(ParagraphStyle(
     spaceAfter=2,
     textColor=colors.HexColor('#333333'),
 ))
-styles.add(ParagraphStyle(
+_styles.add(ParagraphStyle(
     name='Body',
     fontName='Helvetica',
     fontSize=10,
@@ -39,7 +35,7 @@ styles.add(ParagraphStyle(
     spaceAfter=4,
     textColor=colors.HexColor('#555555'),
 ))
-styles.add(ParagraphStyle(
+_styles.add(ParagraphStyle(
     name='Small',
     fontName='Helvetica',
     fontSize=8,
@@ -47,7 +43,7 @@ styles.add(ParagraphStyle(
     spaceAfter=4,
     textColor=colors.HexColor('#888888'),
 ))
-styles.add(ParagraphStyle(
+_styles.add(ParagraphStyle(
     name='Footer',
     fontName='Helvetica',
     fontSize=8,
@@ -56,6 +52,10 @@ styles.add(ParagraphStyle(
     alignment=TA_CENTER,
 ))
 
+_CONTENT_WIDTH = A4[0] - 40*mm
+_NUM_BOX = 18*mm
+_DESC_BOX = _CONTENT_WIDTH - _NUM_BOX
+
 
 class ColoredRect(Flowable):
     def __init__(self, w, h, fill):
@@ -63,6 +63,7 @@ class ColoredRect(Flowable):
         self.width = w
         self.height = h
         self._fill = fill
+
     def draw(self):
         c = self.canv
         c.setFillColor(self._fill)
@@ -89,24 +90,49 @@ def clean_html(text):
     t = re.sub(r'<h[1-6][^>]*>(.*?)</h[1-6]>', r'<b>\1</b>', t, flags=re.DOTALL)
     t = re.sub(r'<p[^>]*>(.*?)</p>', r'\1<br/>', t, flags=re.DOTALL)
     t = re.sub(r'<li[^>]*>(.*?)</li>', r'\1<br/>', t, flags=re.DOTALL)
-    t = re.sub(r'<[/]?[uol]l[^>]*>', '', t, flags=re.DOTALL)
+    t = re.sub(r'</?u?l[^>]*>', '', t, flags=re.DOTALL)
     t = re.sub(r'<[^>]+>', '', t)
     return t.strip()
 
 
+def _make_num_box(number):
+    nc = Paragraph(
+        str(number),
+        ParagraphStyle(
+            f'n_{uuid.uuid4().hex}',
+            fontName='Helvetica-Bold',
+            fontSize=14,
+            textColor=colors.white,
+            alignment=TA_CENTER,
+        )
+    )
+    box = Table([[nc]], colWidths=[_NUM_BOX - 2*mm], rowHeights=[14*mm])
+    box.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1976d2')),
+        ('BOX', (0, 0), (-1, -1), 0, colors.HexColor('#1976d2')),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    return box
+
+
 def build_pdf(opl, steps, tags):
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4,
+    doc = SimpleDocTemplate(
+        buf, pagesize=A4,
         leftMargin=20*mm, rightMargin=20*mm,
-        topMargin=15*mm, bottomMargin=15*mm)
+        topMargin=15*mm, bottomMargin=15*mm,
+    )
     story = []
 
-    story.append(Paragraph(opl['title'], styles['Title']))
+    story.append(Paragraph(opl['title'], _styles['Title']))
 
     if opl.get('description'):
         d = clean_html(opl['description'])
         if d:
-            story.append(Paragraph(d, styles['Body']))
+            story.append(Paragraph(d, _styles['Body']))
 
     if tags:
         story.append(Spacer(1, 4))
@@ -118,33 +144,35 @@ def build_pdf(opl, steps, tags):
     story.append(Spacer(1, 8))
 
     for st in steps:
-        nc = Paragraph(
-            str(st['step_number']),
-            ParagraphStyle(f'n_{uuid.uuid4().hex}', fontName='Helvetica-Bold',
-                fontSize=14, textColor=colors.white, alignment=TA_CENTER)
-        )
-        numbox = Table([[nc]], colWidths=[16*mm], rowHeights=[16*mm])
-        numbox.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#1976d2')),
-            ('BOX', (0,0), (-1,-1), 0, colors.HexColor('#1976d2')),
-            ('TOPPADDING', (0,0), (-1,-1), 0),
-            ('BOTTOMPADDING', (0,0), (-1,-1), 0),
-            ('LEFTPADDING', (0,0), (-1,-1), 0),
-            ('RIGHTPADDING', (0,0), (-1,-1), 0),
-        ]))
+        numbox = _make_num_box(st['step_number'])
 
         parts = []
         if st.get('title'):
-            parts.append(Paragraph(st['title'], styles['Subtitle']))
+            parts.append(Paragraph(st['title'], _styles['Subtitle']))
         txt = clean_html(st.get('description_html') or st.get('description') or '')
         if txt:
-            parts.append(Paragraph(txt, styles['Body']))
-        parts.append(Paragraph(f"Duration: {fmt_dur(st.get('duration_sec', 0))}", styles['Small']))
+            parts.append(Paragraph(txt, _styles['Body']))
+        parts.append(Paragraph(
+            f"Duration: {fmt_dur(st.get('duration_sec', 0))}",
+            _styles['Small']
+        ))
 
-        content = parts[0] if parts else Paragraph('', styles['Body'])
-        story.append(Table([[numbox, content]], colWidths=[18*mm, None]))
-        for p in parts[1:]:
-            story.append(Table([['', p]], colWidths=[18*mm, None]))
+        if parts:
+            first = parts[0]
+            story.append(Table(
+                [[numbox, first]],
+                colWidths=[_NUM_BOX, _DESC_BOX],
+            ))
+            for p in parts[1:]:
+                story.append(Table(
+                    [[Paragraph('', _styles['Normal']), p]],
+                    colWidths=[_NUM_BOX, _DESC_BOX],
+                ))
+        else:
+            story.append(Table(
+                [[numbox, Paragraph('', _styles['Normal'])]],
+                colWidths=[_NUM_BOX, _DESC_BOX],
+            ))
 
         story.append(Spacer(1, 4))
         story.append(HRFlowable(width="90%", thickness=0.5, color=colors.HexColor('#eeeeee')))
@@ -154,7 +182,10 @@ def build_pdf(opl, steps, tags):
     created = opl.get('created_at')
     if isinstance(created, str):
         created = datetime.fromisoformat(created.replace('Z', '+00:00'))
-    story.append(Paragraph(f"Created: {created.strftime('%d.%m.%Y %H:%M')}", styles['Footer']))
+    story.append(Paragraph(
+        f"Created: {created.strftime('%d.%m.%Y %H:%M')}",
+        _styles['Footer']
+    ))
 
     doc.build(story)
     buf.seek(0)

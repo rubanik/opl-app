@@ -777,7 +777,7 @@ function CreateDialog({ open, onClose, onSubmit, tags: allTags = [] }) {
 }
 
 /* ---- Photo Carousel ---- */
-function PhotoCarousel({ photos, photoBaseUrl, onPhotoClick }) {
+function PhotoCarousel({ photos, photoBaseUrl }) {
   const [idx, setIdx] = useState(0);
 
   if (!photos || photos.length === 0) return null;
@@ -797,8 +797,7 @@ function PhotoCarousel({ photos, photoBaseUrl, onPhotoClick }) {
         {photos.map((p, i) => (
           <Box
             key={p.id}
-            sx={{ minWidth: '100%', maxWidth: '100%', aspectRatio: '4/3', overflow: 'hidden', cursor: onPhotoClick ? 'pointer' : 'default' }}
-            onClick={() => onPhotoClick?.(i)}
+            sx={{ minWidth: '100%', maxWidth: '100%', aspectRatio: '4/3', overflow: 'hidden' }}
           >
             <img
               src={`${photoBaseUrl}/photos/${p.id}`}

@@ -467,7 +467,7 @@ function OplList() {
           </Card>
         ))}
 
-        {pagedOpls.length === 0 && !loading && (
+        {opls.length === 0 && !loading && (
           <Paper sx={{ p: { xs: 2, sm: 4 }, textAlign: 'center', bgcolor: '#fafafa' }}>
             <Typography color="text.secondary">Нет инструкций. Создайте первую!</Typography>
           </Paper>

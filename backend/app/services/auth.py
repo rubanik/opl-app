@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 import logging
 
-from ldap3 import Server, Connection, ALL, SUBTREE, Tls
+from ldap3 import Server, Connection, ALL, SUBTREE
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from passlib.context import CryptContext
@@ -18,6 +18,10 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def escape_ldap_filter(value: str) -> str:
+    return value.replace("\\", "\\5c").replace("(", "\\28").replace(")", "\\29").replace("*", "\\2a").replace("\x00", "\\00")
 
 
 def create_access_token(data: dict) -> str:
@@ -72,7 +76,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             auto_bind="READ_ONLY",
         )
         search_base = settings.ldap_search_base or settings.ldap_base_dn
-        search_filter = settings.ldap_user_search.format(username=username)
+        search_filter = settings.ldap_user_search.format(username=escape_ldap_filter(username))
         conn.search(
             search_base=search_base,
             search_filter=search_filter,

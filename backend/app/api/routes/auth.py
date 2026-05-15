@@ -39,33 +39,39 @@ def login(
 ):
     remember_flag = remember and remember.lower() == 'true'
 
-    ldap_info = authenticate_ldap(username, password)
-    if ldap_info:
-        user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
-        if not user:
-            user = User(
-                username=username,
-                email=ldap_info.get("email"),
-                is_local=False,
-                ldap_dn=ldap_info.get("ldap_dn"),
-                created_at=datetime.now(timezone.utc),
-                last_login=datetime.now(timezone.utc),
-            )
-            db.add(user)
+    user = None
+    try:
+        ldap_info = authenticate_ldap(username, password)
+        if ldap_info:
+            user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+            if not user:
+                user = User(
+                    username=username,
+                    email=ldap_info.get("email"),
+                    is_local=False,
+                    ldap_dn=ldap_info.get("ldap_dn"),
+                    created_at=datetime.now(timezone.utc),
+                    last_login=datetime.now(timezone.utc),
+                )
+                db.add(user)
+            else:
+                user.last_login = datetime.now(timezone.utc)
             db.commit()
             db.refresh(user)
         else:
+            user = authenticate_local(db, username, password)
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Неверный логин или пароль",
+                )
             user.last_login = datetime.now(timezone.utc)
             db.commit()
-    else:
-        user = authenticate_local(db, username, password)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Неверный логин или пароль",
-            )
-        user.last_login = datetime.now(timezone.utc)
-        db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        db.rollback()
+        raise
 
     access = create_access_token({"sub": str(user.id), "username": user.username})
     refresh = create_refresh_token({"sub": str(user.id)})
@@ -95,29 +101,31 @@ def login(
 @router.post("/register")
 def register(
     response: Response,
-    username: str,
-    password: str,
-    email: str | None = None,
+    body: RegisterRequest,
     db: Session = Depends(get_db),
 ):
-    if not username or len(username) < 3:
+    if len(body.username) < 3:
         raise HTTPException(status_code=400, detail="Логин должен содержать минимум 3 символа")
-    if not password or len(password) < 4:
+    if len(body.password) < 4:
         raise HTTPException(status_code=400, detail="Пароль должен содержать минимум 4 символа")
-    existing = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    existing = db.execute(select(User).where(User.username == body.username)).scalar_one_or_none()
     if existing:
         raise HTTPException(status_code=400, detail="Аккаунт с таким логином уже существует")
     user = User(
-        username=username,
-        email=email,
+        username=body.username,
+        email=body.email,
         is_local=True,
-        password_hash=get_password_hash(password),
+        password_hash=get_password_hash(body.password),
         created_at=datetime.now(timezone.utc),
         last_login=datetime.now(timezone.utc),
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    try:
+        db.commit()
+        db.refresh(user)
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Ошибка создания аккаунта")
 
     access = create_access_token({"sub": str(user.id), "username": user.username})
     refresh = create_refresh_token({"sub": str(user.id)})

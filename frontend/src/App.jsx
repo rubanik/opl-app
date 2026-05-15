@@ -66,6 +66,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LoginIcon from '@mui/icons-material/Login';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import LogoutIcon from '@mui/icons-material/Logout';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { QRCodeSVG } from 'qrcode.react';
@@ -285,7 +286,7 @@ function HeaderUserArea() {
         {user.username}
       </Typography>
       <IconButton size="small" sx={{ color: 'white' }} onClick={logout}>
-        <LoginIcon fontSize="small" />
+        <LogoutIcon fontSize="small" />
       </IconButton>
     </Box>
   );

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import bcrypt
 
-from ldap3 import Server, Connection, ALL, SUBTREE
+from ldap3 import Server, Connection, NO_INFO, SUBTREE
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status, Cookie
@@ -61,7 +61,8 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             settings.ldap_server,
             port=settings.ldap_port,
             use_ssl=use_ssl,
-            get_info=ALL,
+            get_info=NO_INFO,
+            connect_timeout=10,
         )
 
         # --- Mode 1: User-bind (template, like Grafana) ---
@@ -73,6 +74,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 user=user_dn,
                 password=password,
                 authentication="SIMPLE",
+                read_timeout=10,
             )
             if not user_conn.bind():
                 logger.info(f"LDAP user-bind failed for {username}")
@@ -98,6 +100,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             password=settings.ldap_bind_password,
             authentication="SIMPLE",
             auto_bind="READ_ONLY",
+            read_timeout=10,
         )
         logger.info(f"LDAP service-bind OK, searching user={username}")
         search_base = settings.ldap_search_base or settings.ldap_base_dn
@@ -120,6 +123,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             user=user_dn,
             password=password,
             authentication="SIMPLE",
+            read_timeout=10,
         )
         if not user_conn.bind():
             logger.info(f"LDAP user-bind failed for {user_dn}")

@@ -1,0 +1,153 @@
+from __future__ import annotations
+
+import uuid
+from datetime import datetime, timedelta, timezone
+import logging
+
+from ldap3 import Server, Connection, ALL, SUBTREE, Tls
+from ldap3.core.exceptions import LDAPException
+from jose import jwt, JWTError
+from passlib.context import CryptContext
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPCookie
+from sqlalchemy import select
+
+from app.core.config import settings
+from app.db.session import get_db
+from app.models.user import User
+
+logger = logging.getLogger(__name__)
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+cookie_scheme = HTTPCookie(cookie_name="access_token")
+refresh_cookie_scheme = HTTPCookie(cookie_name="refresh_token")
+
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_access_minutes)
+    to_encode.update({"exp": expire, "type": "access"})
+    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def create_refresh_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_refresh_minutes)
+    to_encode.update({"exp": expire, "type": "refresh"})
+    return jwt.encode(to_encode, settings.jwt_secret, algorithm=settings.jwt_algorithm)
+
+
+def decode_token(token: str) -> dict:
+    try:
+        payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+        return payload
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Недействительный токен")
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception:
+        return False
+
+
+def get_password_hash(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def authenticate_ldap(username: str, password: str) -> dict | None:
+    if not settings.ldap_server or not settings.ldap_base_dn:
+        return None
+    try:
+        use_ssl = settings.ldap_use_ssl
+        server = Server(
+            settings.ldap_server,
+            port=settings.ldap_port,
+            use_ssl=use_ssl,
+            get_info=ALL,
+        )
+        conn = Connection(
+            server,
+            user=settings.ldap_bind_dn,
+            password=settings.ldap_bind_password,
+            authentication="SIMPLE",
+            auto_bind="READ_ONLY",
+        )
+        search_base = settings.ldap_search_base or settings.ldap_base_dn
+        search_filter = settings.ldap_user_search.format(username=username)
+        conn.search(
+            search_base=search_base,
+            search_filter=search_filter,
+            search_scope=SUBTREE,
+            attributes=["dn", "mail", "displayName"],
+        )
+        if not conn.entries:
+            conn.close()
+            return None
+        entry = conn.entries[0]
+        user_dn = str(entry.entry_dn)
+        user_conn = Connection(
+            server,
+            user=user_dn,
+            password=password,
+            authentication="SIMPLE",
+        )
+        if not user_conn.bind():
+            conn.close()
+            return None
+        email = str(entry.mail) if hasattr(entry, 'mail') and entry.mail else None
+        display_name = str(entry.displayName) if hasattr(entry, 'displayName') and entry.displayName else username
+        conn.close()
+        user_conn.close()
+        return {
+            "username": username,
+            "email": email,
+            "display_name": display_name,
+            "ldap_dn": user_dn,
+        }
+    except LDAPException as e:
+        logger.warning(f"LDAP error for {username}: {e}")
+        return None
+    except Exception as e:
+        logger.error(f"LDAP connection error: {e}")
+        return None
+
+
+def authenticate_local(db, username: str, password: str) -> User | None:
+    user = db.execute(select(User).where(User.username == username)).scalar_one_or_none()
+    if not user or not user.is_local or not user.password_hash:
+        return None
+    if not verify_password(password, user.password_hash):
+        return None
+    return user
+
+
+def get_current_user(
+    access_token: str | None = Depends(cookie_scheme),
+    db=Depends(get_db),
+) -> User:
+    if not access_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Требуется авторизация",
+        )
+    payload = decode_token(access_token)
+    if payload.get("type") != "access":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный токен",
+        )
+    user_id = payload.get("sub")
+    if not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Недействительный токен",
+        )
+    user = db.get(User, uuid.UUID(user_id))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Пользователь не найден",
+        )
+    return user

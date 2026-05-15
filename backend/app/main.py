@@ -9,6 +9,7 @@ from sqlalchemy import text
 from app.api.router import api_router
 from app.db.session import get_engine
 from app.models.opl import Base
+from app.models.user import User
 
 
 def wait_for_db():

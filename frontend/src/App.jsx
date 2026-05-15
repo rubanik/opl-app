@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -43,7 +43,7 @@ import {
   Pagination,
   useMediaQuery,
 } from '@mui/material';
-import { Link as MuiLink } from '@mui/material';
+import { Link as MuiLink, Avatar, Tabs, Tab, CircularProgress } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -63,10 +63,233 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import HomeIcon from '@mui/icons-material/Home';
 import CodeIcon from '@mui/icons-material/Code';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import LoginIcon from '@mui/icons-material/Login';
+import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { QRCodeSVG } from 'qrcode.react';
 
 const API = '/api';
 const APP_URL = window.location.origin;
+
+/* ---- Auth Context ---- */
+const AuthContext = createContext(null);
+
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API}/auth/me`)
+      .then(r => r.ok ? r.json() : null)
+      .then(u => { setUser(u); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const checkAuth = useCallback((onRequireAuth) => {
+    if (user) return true;
+    setPendingAction(onRequireAuth);
+    setAuthOpen(true);
+    return false;
+  }, [user]);
+
+  const login = async (credentials) => {
+    const formData = new URLSearchParams();
+    formData.set('username', credentials.username);
+    formData.set('password', credentials.password);
+    formData.set('scope', '');
+    formData.set('remember', credentials.remember ? 'true' : 'false');
+    const res = await fetch(`${API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: formData,
+    });
+    if (!res.ok) throw new Error('Неверный логин или пароль');
+    const data = await res.json();
+    setUser(data.user);
+    setAuthOpen(false);
+    if (pendingAction) {
+      const fn = pendingAction;
+      setPendingAction(null);
+      fn();
+    }
+  };
+
+  const register = async (credentials) => {
+    const res = await fetch(`${API}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credentials),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Ошибка регистрации');
+    }
+    const data = await res.json();
+    setUser(data.user);
+    setAuthOpen(false);
+    if (pendingAction) {
+      const fn = pendingAction;
+      setPendingAction(null);
+      fn();
+    }
+  };
+
+  const logout = async () => {
+    await fetch(`${API}/auth/logout`, { method: 'POST' });
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, authOpen, setAuthOpen, pendingAction, checkAuth, login, register, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function useAuth() {
+  return useContext(AuthContext);
+}
+
+/* ---- Auth Dialog ---- */
+function AuthDialog() {
+  const { authOpen, setAuthOpen, login, register } = useAuth();
+  const [mode, setMode] = useState('login');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
+  const [remember, setRemember] = useState(true);
+  const [showPass, setShowPass] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async () => {
+    setError('');
+    setSaving(true);
+    try {
+      if (mode === 'login') {
+        await login({ username, password, remember });
+      } else {
+        await register({ username, password, email });
+      }
+      setUsername('');
+      setPassword('');
+      setEmail('');
+    } catch (e) {
+      setError(e.message);
+    }
+    setSaving(false);
+  };
+
+  const handleTabChange = (_, v) => {
+    setTabValue(v);
+    setMode(v === 0 ? 'login' : 'register');
+    setError('');
+  };
+
+  return (
+    <Dialog open={authOpen} onClose={() => setAuthOpen(false)} maxWidth="xs" fullWidth>
+      <DialogTitle>
+        <Tabs value={tabValue} onChange={handleTabChange} centered>
+          <Tab label="Вход" />
+          <Tab label="Регистрация" />
+        </Tabs>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 1 }}>
+          {error && (
+            <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
+          )}
+          <TextField
+            label="Логин"
+            fullWidth
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            inputProps={{ minLength: 3 }}
+          />
+          <TextField
+            label="Пароль"
+            type={showPass ? 'text' : 'password'}
+            fullWidth
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setShowPass(!showPass)} edge="end">
+                    {showPass ? <VisibilityOffIcon fontSize="small" /> : <VisibilityIcon fontSize="small" />}
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          {mode === 'register' && (
+            <TextField
+              label="Email (необязательно)"
+              type="email"
+              fullWidth
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          )}
+          {mode === 'login' && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+              <Typography variant="body2">Запомнить меня</Typography>
+            </label>
+          )}
+        </Stack>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={() => setAuthOpen(false)}>Отмена</Button>
+        <Button
+          variant="contained"
+          onClick={submit}
+          disabled={!username.trim() || !password.trim() || saving}
+        >
+          {saving ? <CircularProgress size={20} /> : mode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
+
+/* ---- Header User Area ---- */
+function HeaderUserArea() {
+  const { user, setAuthOpen, logout } = useAuth();
+
+  if (!user) {
+    return (
+      <Button
+        size="small"
+        variant="outlined"
+        startIcon={<LoginIcon />}
+        onClick={() => setAuthOpen(true)}
+        sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.5)', fontSize: '0.75rem' }}
+      >
+        Войти
+      </Button>
+    );
+  }
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.2)' }}>
+        <AccountCircleIcon fontSize="small" />
+      </Avatar>
+      <Typography variant="body2" sx={{ color: 'white', fontWeight: 500, display: { xs: 'none', sm: 'block' } }}>
+        {user.username}
+      </Typography>
+      <IconButton size="small" sx={{ color: 'white' }} onClick={logout}>
+        <LoginIcon fontSize="small" />
+      </IconButton>
+    </Box>
+  );
+}
 
 /* ---- Confirm Dialog ---- */
 function ConfirmDialog({ open, title, message, onConfirm, onCancel }) {
@@ -206,6 +429,7 @@ function OplList() {
   const undoTimerRef = useRef(null);
   const undoIntervalRef = useRef(null);
   const navigate = useNavigate();
+  const { user, checkAuth } = useAuth();
 
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
@@ -354,7 +578,7 @@ function OplList() {
           <Tooltip title="Управление тегами" arrow>
             <IconButton
               size="small"
-              onClick={() => setTagManagerOpen(true)}
+              onClick={() => checkAuth(() => setTagManagerOpen(true))}
               sx={{ color: 'white' }}
             >
               <AddIcon fontSize="small" />
@@ -364,7 +588,7 @@ function OplList() {
             variant="contained"
             size="small"
             startIcon={<AddIcon />}
-            onClick={() => setNewOpen(true)}
+            onClick={() => checkAuth(() => setNewOpen(true))}
             sx={{ borderRadius: 2 }}
           >
             Новая
@@ -499,7 +723,7 @@ function OplList() {
                 </Box>
                 <IconButton
                   sx={{ color: '#aaa', ml: 1 }}
-                  onClick={(e) => { e.stopPropagation(); handleDeleteClick(opl.id); }}
+                  onClick={(e) => { e.stopPropagation(); checkAuth(() => handleDeleteClick(opl.id)); }}
                 >
                   <DeleteIcon />
                 </IconButton>
@@ -932,6 +1156,7 @@ function OplDetail() {
   const navigate = useNavigate();
   const isDesktop = useMediaQuery('(min-width:900px)');
   const photoBase = `${API}/opls/${id}`;
+  const { checkAuth } = useAuth();
 
   useEffect(() => {
     fetch(`${API}/opls/${id}`)
@@ -1327,7 +1552,7 @@ function OplDetail() {
         <IconButton size="small" onClick={() => setQrOpen(true)}>
           <QrCodeIcon />
         </IconButton>
-        <IconButton size="small" onClick={startEdit}>
+        <IconButton size="small" onClick={() => checkAuth(() => startEdit())}>
           <EditIcon />
         </IconButton>
       </Box>
@@ -1454,25 +1679,50 @@ function OplDetail() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-        <CssBaseline />
-        <AppBar position="static" elevation={0} sx={{ bgcolor: '#1565c0' }}>
-          <Toolbar>
-            <IconButton edge="start" color="inherit" sx={{ mr: 2 }}>
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" component={Link} to="/" sx={{ fontWeight: 600, color: 'inherit', textDecoration: 'none' }}>
-              OPL Инструкции
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Container maxWidth="lg" sx={{ mt: { xs: 1, sm: 3 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
-          <Routes>
-            <Route path="/" element={<OplList />} />
-            <Route path="/opl/:id" element={<OplDetail />} />
-          </Routes>
-        </Container>
-      </Box>
+      <AuthProvider>
+        <AppInner />
+      </AuthProvider>
     </BrowserRouter>
+  );
+}
+
+function AppInner() {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+      <CssBaseline />
+      <AppBar position="static" elevation={0} sx={{ bgcolor: '#1565c0' }}>
+        <Toolbar>
+          <IconButton edge="start" color="inherit" sx={{ mr: 2 }}>
+            <MenuIcon />
+          </IconButton>
+          <Typography
+            variant="h6"
+            component={Link}
+            to="/"
+            sx={{ fontWeight: 600, color: 'inherit', textDecoration: 'none', flexGrow: 1 }}
+          >
+            OPL Инструкции
+          </Typography>
+          <HeaderUserArea />
+        </Toolbar>
+      </AppBar>
+      <Container maxWidth="lg" sx={{ mt: { xs: 1, sm: 3 }, mb: { xs: 2, sm: 4 }, px: { xs: 1, sm: 2 } }}>
+        <Routes>
+          <Route path="/" element={<OplList />} />
+          <Route path="/opl/:id" element={<OplDetail />} />
+        </Routes>
+      </Container>
+      <AuthDialog />
+    </Box>
   );
 }

@@ -3,11 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 import logging
+import bcrypt
 
 from ldap3 import Server, Connection, ALL, SUBTREE
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
-from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status, Cookie
 from sqlalchemy import select
 
@@ -16,8 +16,6 @@ from app.db.session import get_db
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def escape_ldap_filter(value: str) -> str:
@@ -47,14 +45,11 @@ def decode_token(token: str) -> dict:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    try:
-        return pwd_context.verify(plain_password, hashed_password)
-    except Exception:
-        return False
+    return bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
 
 def authenticate_ldap(username: str, password: str) -> dict | None:

@@ -90,6 +90,14 @@ function AuthProvider({ children }) {
       .catch(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (user && pendingAction) {
+      setAuthOpen(false);
+      setPendingAction(null);
+      setTimeout(() => pendingAction(), 150);
+    }
+  }, [user]);
+
   const checkAuth = useCallback((onRequireAuth) => {
     if (user) { onRequireAuth(); return true; }
     setPendingAction(onRequireAuth);
@@ -112,11 +120,6 @@ function AuthProvider({ children }) {
     const data = await res.json();
     setUser(data.user);
     setAuthOpen(false);
-    if (pendingAction) {
-      const fn = pendingAction;
-      setPendingAction(null);
-      fn();
-    }
   };
 
   const register = async (credentials) => {
@@ -132,11 +135,6 @@ function AuthProvider({ children }) {
     const data = await res.json();
     setUser(data.user);
     setAuthOpen(false);
-    if (pendingAction) {
-      const fn = pendingAction;
-      setPendingAction(null);
-      fn();
-    }
   };
 
   const logout = async () => {
@@ -157,7 +155,7 @@ function useAuth() {
 
 /* ---- Auth Dialog ---- */
 function AuthDialog() {
-  const { authOpen, setAuthOpen, login, register } = useAuth();
+  const { authOpen, setAuthOpen, pendingAction, login, register } = useAuth();
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -202,6 +200,7 @@ function AuthDialog() {
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
+          <Alert severity="info">Для этого действия нужна авторизация</Alert>
           {error && (
             <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
           )}
@@ -246,7 +245,7 @@ function AuthDialog() {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={() => setAuthOpen(false)}>Отмена</Button>
+        <Button onClick={() => { setAuthOpen(false); if (pendingAction) setPendingAction(null); }}>Отмена</Button>
         <Button
           variant="contained"
           onClick={submit}
@@ -576,24 +575,41 @@ function OplList() {
           Инструкции OPL
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Tooltip title="Управление тегами" arrow>
-            <IconButton
-              size="small"
-              onClick={() => checkAuth(() => setTagManagerOpen(true))}
-              sx={{ color: 'white' }}
-            >
-              <AddIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={() => checkAuth(() => setNewOpen(true))}
-            sx={{ borderRadius: 2 }}
-          >
-            Новая
-          </Button>
+          {user && (
+            <>
+              <Tooltip title="Управление тегами" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => setTagManagerOpen(true)}
+                  sx={{ color: 'white' }}
+                >
+                  <AddIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => setNewOpen(true)}
+                sx={{ borderRadius: 2 }}
+              >
+                Новая
+              </Button>
+            </>
+          )}
+          {!user && (
+            <Tooltip title="Войдите, чтобы создавать и управлять инструкциями" arrow>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<LoginIcon />}
+                onClick={() => checkAuth(() => setNewOpen(true))}
+                sx={{ borderRadius: 2, color: 'white', borderColor: 'rgba(255,255,255,0.5)', fontSize: '0.75rem' }}
+              >
+                Войти
+              </Button>
+            </Tooltip>
+          )}
         </Box>
       </Box>
 
@@ -722,12 +738,20 @@ function OplList() {
                     />
                   </Box>
                 </Box>
-                <IconButton
-                  sx={{ color: '#aaa', ml: 1 }}
-                  onClick={(e) => { e.stopPropagation(); checkAuth(() => handleDeleteClick(opl.id)); }}
-                >
-                  <DeleteIcon />
-                </IconButton>
+                {user ? (
+                  <IconButton
+                    sx={{ color: '#aaa', ml: 1 }}
+                    onClick={(e) => { e.stopPropagation(); handleDeleteClick(opl.id); }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                ) : (
+                  <Tooltip title="Войдите, чтобы удалять">
+                    <Box sx={{ width: 36, height: 36, ml: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <DeleteIcon sx={{ color: '#ddd', fontSize: 20 }} />
+                    </Box>
+                  </Tooltip>
+                )}
               </Box>
             </CardContent>
           </Card>
@@ -1157,7 +1181,7 @@ function OplDetail() {
   const navigate = useNavigate();
   const isDesktop = useMediaQuery('(min-width:900px)');
   const photoBase = `${API}/opls/${id}`;
-  const { checkAuth } = useAuth();
+  const { checkAuth, user } = useAuth();
 
   useEffect(() => {
     fetch(`${API}/opls/${id}`)
@@ -1553,9 +1577,19 @@ function OplDetail() {
         <IconButton size="small" onClick={() => setQrOpen(true)}>
           <QrCodeIcon />
         </IconButton>
-        <IconButton size="small" onClick={() => checkAuth(() => startEdit())}>
-          <EditIcon />
-        </IconButton>
+        {user ? (
+          <Tooltip title="Редактировать" arrow>
+            <IconButton size="small" onClick={() => startEdit()}>
+              <EditIcon />
+            </IconButton>
+          </Tooltip>
+        ) : (
+          <Tooltip title="Войдите, чтобы редактировать" arrow>
+            <IconButton size="small" disabled>
+              <EditIcon sx={{ color: '#ccc' }} />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
       {opl.description && (

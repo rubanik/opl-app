@@ -63,6 +63,8 @@ export default function OplDetail() {
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editSteps, setEditSteps] = useState([]);
+  const [editTags, setEditTags] = useState([]);
+  const [editSelectedTagIds, setEditSelectedTagIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
   const [confirm, setConfirm] = useState({ open: false, stepId: null, photoId: null });
@@ -87,11 +89,13 @@ export default function OplDetail() {
       .catch(() => { setError(true); setLoading(false); });
   }, [id]);
 
-  const startEdit = () => {
+  const startEdit = async () => {
     checkAuth(() => {
       setEditTitle(opl.title);
       setEditDescription(opl.description || '');
       setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
+      setEditSelectedTagIds(opl.tags.map(t => t.id));
+      fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
       setEditing(true);
     });
   };

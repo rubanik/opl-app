@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import bcrypt
 
-from ldap3 import Server, Connection, NO_INFO, SUBTREE
+from ldap3 import Server, Connection, SUBTREE
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status, Cookie
@@ -61,7 +61,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             settings.ldap_server,
             port=settings.ldap_port,
             use_ssl=use_ssl,
-            get_info=NO_INFO,
+            get_info=None,
             connect_timeout=10,
         )
 

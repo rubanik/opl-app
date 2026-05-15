@@ -66,6 +66,7 @@ export default function OplDetail() {
   const [saving, setSaving] = useState(false);
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
   const [confirm, setConfirm] = useState({ open: false, stepId: null, photoId: null });
+  const [deleteOplConfirm, setDeleteOplConfirm] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
   const [draggedIdx, setDraggedIdx] = useState(null);
   const stepsRefs = useRef([]);
@@ -74,7 +75,7 @@ export default function OplDetail() {
   const isMobile = useMediaQuery('(max-width:600px)');
   const photoBase = `${API}/opls/${id}`;
   const { checkAuth, user } = useAuth();
-  const { toast: apiToast, setToast: setApiToast } = useApi();
+  const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
 
   useEffect(() => {
     fetch(`${API}/opls/${id}`)
@@ -93,6 +94,12 @@ export default function OplDetail() {
       setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
       setEditing(true);
     });
+  };
+
+  const handleDeleteOpl = async () => {
+    setDeleteOplConfirm(false);
+    await apiDelete(`/opls/${id}`);
+    navigate('/');
   };
 
   const cancelEdit = () => {
@@ -281,6 +288,13 @@ export default function OplDetail() {
           <Typography variant={{ xs: 'h6', sm: 'h5' }} sx={{ fontWeight: 700, flex: 1 }}>
             Редактирование
           </Typography>
+          {user && (
+            <Tooltip title="Удалить инструкцию" arrow>
+              <IconButton size="small" onClick={() => setDeleteOplConfirm(true)} sx={{ color: 'error.main' }}>
+                <DeleteIcon />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
 
         <TextField
@@ -371,20 +385,25 @@ export default function OplDetail() {
                     onChange={(e) => updateEditStep(idx, 'duration_sec', parseInt(e.target.value) || 0)}
                     sx={{ width: 130, borderRadius: 1 }}
                   />
-                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                    <IconButton size="small" color="primary">
-                      <PhotoCameraIcon />
-                    </IconButton>
-                    <Typography variant="body2" color="text.secondary">Добавить фото</Typography>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      hidden
-                      multiple
-                      onChange={(e) => {
-                        Array.from(e.target.files).forEach((f) => uploadPhotoToStep(step, f));
-                      }}
-                    />
+                  <input
+                    id={`photo-upload-${step.id}`}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    multiple
+                    onChange={(e) => {
+                      Array.from(e.target.files).forEach((f) => uploadPhotoToStep(step, f));
+                      e.target.value = '';
+                    }}
+                  />
+                  <label
+                    htmlFor={`photo-upload-${step.id}`}
+                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5 }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, borderRadius: 2, px: 1.5, py: 0.5, bgcolor: 'action.hover', '&:hover': { bgcolor: 'action.selected' } }}>
+                      <PhotoCameraIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                      <Typography variant="body2" color="text.secondary">Фото</Typography>
+                    </Box>
                   </label>
                 </Box>
 
@@ -525,6 +544,13 @@ export default function OplDetail() {
             <Tooltip title="Войдите, чтобы редактировать" arrow>
               <IconButton size="small" onClick={() => checkAuth(() => startEdit())}>
                 <EditIcon sx={{ color: 'text.disabled' }} />
+              </IconButton>
+            </Tooltip>
+          )}
+          {user && (
+            <Tooltip title="Удалить инструкцию" arrow>
+              <IconButton size="small" onClick={() => setDeleteOplConfirm(true)} sx={{ color: 'error.main' }}>
+                <DeleteIcon />
               </IconButton>
             </Tooltip>
           )}
@@ -684,6 +710,15 @@ export default function OplDetail() {
         message="Это действие нельзя отменить."
         onConfirm={confirmDeletePhoto}
         onCancel={() => setConfirm({ open: false, stepId: null, photoId: null })}
+      />
+
+      {/* Confirm delete OPL */}
+      <ConfirmDialog
+        open={deleteOplConfirm}
+        title="Удалить инструкцию?"
+        message={`Вы уверены, что хотите удалить «${opl.title}»? Это действие нельзя отменить.`}
+        onConfirm={handleDeleteOpl}
+        onCancel={() => setDeleteOplConfirm(false)}
       />
 
       {/* Toasts */}

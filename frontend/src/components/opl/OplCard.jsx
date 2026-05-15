@@ -126,19 +126,19 @@ export default function OplCard({ opl, onDelete, user }) {
           </Box>
 
           {user && (
-            <IconButton
-              size="small"
-              sx={{
-                color: 'text.disabled',
-                ml: 'auto', flexShrink: 0,
-                opacity: isMobile ? 1 : 0,
-                transition: 'opacity 0.2s',
-                '&:hover': { color: 'error.main', bgcolor: '#ffebee' },
-              }}
-              onClick={(e) => { e.stopPropagation(); onDelete(opl.id); }}
-            >
-              <DeleteIcon fontSize="small" />
-            </IconButton>
+            <Tooltip title="Удалить" arrow>
+              <IconButton
+                size="small"
+                sx={{
+                  color: 'text.disabled',
+                  ml: 'auto', flexShrink: 0,
+                  '&:hover': { color: 'error.main', bgcolor: '#ffebee' },
+                }}
+                onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(opl.id); }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
           )}
         </Box>
       </CardContent>

@@ -29,6 +29,7 @@ import {
   Avatar,
 } from '@mui/material';
 import { Link as MuiLink } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import DeleteIcon from '@mui/icons-material/Delete';
 import QrCodeIcon from '@mui/icons-material/QrCode';
@@ -173,14 +174,13 @@ export default function OplDetail() {
     setConfirm({ open: false, stepId: null, photoId: null });
   };
 
-  const uploadPhotoToStep = async (stepIdx, file) => {
+  const uploadPhotoToStep = async (step, file) => {
     const reader = new FileReader();
     reader.onload = async (e) => {
       const blob = await (await fetch(e.target.result)).blob();
       const form = new FormData();
       form.append('file', blob, 'photo.jpg');
-      const step = editSteps[stepIdx];
-      await fetch(`${API}/opls/${id}/steps/${step.id}/photos?order=${step.photos.length}`, {
+      await fetch(`${API}/opls/${id}/steps/${step.id}/photos?order=${(step.photos || []).length}`, {
         method: 'POST',
         body: form,
       });
@@ -190,6 +190,18 @@ export default function OplDetail() {
       setEditSteps(data.steps.map(s => ({ ...s, photos: s.photos || [] })));
     };
     reader.readAsDataURL(file);
+  };
+
+  const addEditStep = async () => {
+    const maxStep = editSteps.reduce((max, s) => Math.max(max, s.step_number), 0);
+    const payload = { step_number: maxStep + 1, title: '', description: '', duration_sec: 0, photos: [] };
+    const res = await fetch(`${API}/opls/${id}/steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const newStep = await res.json();
+    setEditSteps(prev => [...prev, { ...newStep, photos: [] }]);
   };
 
   const scrollToStep = (stepIdx) => {
@@ -370,13 +382,13 @@ export default function OplDetail() {
                       hidden
                       multiple
                       onChange={(e) => {
-                        Array.from(e.target.files).forEach((f) => uploadPhotoToStep(idx, f));
+                        Array.from(e.target.files).forEach((f) => uploadPhotoToStep(step, f));
                       }}
                     />
                   </label>
                 </Box>
 
-                {step.photos?.length > 0 && (
+                {step.photos && step.photos.length > 0 && (
                   <Box sx={{ display: 'flex', gap: 1, mt: 1.5, flexWrap: 'wrap' }}>
                     {step.photos.map((p, pi) => (
                       <Box
@@ -424,6 +436,15 @@ export default function OplDetail() {
             </Card>
           ))}
         </Stack>
+
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={addEditStep}
+          sx={{ alignSelf: 'center', borderRadius: 2, my: 1 }}
+        >
+          Добавить шаг
+        </Button>
 
         <Divider sx={{ my: 2 }} />
 

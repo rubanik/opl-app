@@ -12,7 +12,7 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate
+from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate
 from app.services.auth import get_current_user
 import qrcode
 
@@ -149,6 +149,26 @@ def update_step(opl_id: uuid.UUID, step_id: uuid.UUID, body: StepUpdate, db: Ses
     db.commit()
     db.refresh(step)
     return step
+
+
+@router.post("/{opl_id}/steps", response_model=StepOut, status_code=201)
+def create_step(opl_id: uuid.UUID, body: StepCreate, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+	opl = db.get(Opl, opl_id)
+	if not opl:
+		raise HTTPException(404, "Инструкция не найдена")
+	step = Step(
+		opl_id=opl.id,
+		step_number=body.step_number,
+		title=body.title,
+		description=body.description,
+		duration_sec=body.duration_sec,
+	)
+	db.add(step)
+	for pi in body.photos:
+		db.add(Photo(step_id=step.id, display_order=pi.display_order))
+	db.commit()
+	db.refresh(step)
+	return step
 
 
 @router.delete("/{opl_id}/steps/{step_id}")

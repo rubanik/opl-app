@@ -311,7 +311,7 @@ export default function OplList() {
       {/* Tags filter */}
       {allTags.length > 0 && (
         <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', alignItems: 'center' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
             {allTags.map(tag => {
               const active = selectedTagIds.includes(tag.id);
               return (
@@ -343,7 +343,7 @@ export default function OplList() {
                 Сбросить
               </Button>
             )}
-          </Stack>
+          </Box>
         </Box>
       )}
 

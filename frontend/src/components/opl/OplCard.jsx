@@ -66,7 +66,14 @@ export default function OplCard({ opl, onDelete, user }) {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
               <Typography
                 variant={{ xs: 'subtitle1', sm: 'h6' }}
-                sx={{ fontWeight: 600, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                sx={{
+                  fontWeight: 600, lineHeight: 1.3,
+                  display: { xs: '-webkit-box', sm: 'block' },
+                  overflow: 'hidden',
+                  WebkitLineClamp: { xs: 2, sm: 0 },
+                  WebkitBoxOrient: { xs: 'vertical', sm: '' },
+                  whiteSpace: { xs: 'normal', sm: 'nowrap' },
+                }}
               >
                 {opl.title}
               </Typography>

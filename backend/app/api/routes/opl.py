@@ -12,7 +12,6 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.models.user import User
 from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut
 from app.services.auth import get_current_user
 import qrcode
@@ -138,7 +137,8 @@ def update_opl(opl_id: uuid.UUID, body: OplUpdate, db: Session = Depends(get_db)
     opl = db.execute(
         select(Opl).options(
             joinedload(Opl.steps).joinedload(Step.photos),
-            joinedload(Opl.tags)
+            joinedload(Opl.tags),
+            joinedload(Opl.author)
         ).where(Opl.id == opl_id)
     ).unique().scalar_one()
     return opl
@@ -251,7 +251,8 @@ def get_opl(opl_id: uuid.UUID, db: Session = Depends(get_db)):
     opl = db.execute(
         select(Opl).options(
             joinedload(Opl.steps).joinedload(Step.photos),
-            joinedload(Opl.tags)
+            joinedload(Opl.tags),
+            joinedload(Opl.author)
         ).where(Opl.id == opl_id)
     ).unique().scalar_one_or_none()
     if not opl:

@@ -34,6 +34,12 @@ def init_db():
     except Exception:
         pass
     try:
+        with eng.connect() as conn:
+            conn.execute(text("ALTER TABLE opls ADD COLUMN created_by UUID REFERENCES users(id)"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
         from app.db.migrate_title import upgrade as migrate_title
         migrate_title()
     except Exception:

@@ -1,15 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  Chip,
-  Tooltip,
-  IconButton,
-  useMediaQuery,
-} from '@mui/material';
+import Avatar from '@mui/material/Avatar';
+import Box from '@mui/material/Box';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import Chip from '@mui/material/Chip';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import Typography from '@mui/material/Typography';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import DeleteIcon from '@mui/icons-material/Delete';
 import TimerIcon from '@mui/icons-material/Timer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
@@ -91,6 +90,16 @@ export default function OplCard({ opl, onDelete, user }) {
             )}
 
             <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+              {opl.author && (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
+                  <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'grey.300', color: 'grey.700' }}>
+                    {opl.author.username.slice(0, 2).toUpperCase()}
+                  </Avatar>
+                  <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
+                    {opl.author.username}
+                  </Typography>
+                </Box>
+              )}
               {(opl.tags || []).map(tag => (
                 <Chip
                   key={tag.id}

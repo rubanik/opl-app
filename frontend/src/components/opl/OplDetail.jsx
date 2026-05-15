@@ -580,6 +580,14 @@ export default function OplDetail() {
           size="small"
           variant="outlined"
         />
+        {opl.author && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Avatar sx={{ width: 22, height: 22, fontSize: '0.65rem', bgcolor: 'grey.300', color: 'grey.700' }}>
+              {opl.author.username.slice(0, 2).toUpperCase()}
+            </Avatar>
+            <Typography variant="caption" color="text.secondary">{opl.author.username}</Typography>
+          </Box>
+        )}
         {opl.created_at && (
           <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
             Создано: {new Date(opl.created_at).toLocaleDateString('ru-RU')}

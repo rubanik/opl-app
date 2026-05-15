@@ -8,8 +8,7 @@ from ldap3 import Server, Connection, ALL, SUBTREE, Tls
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPCookie
+from fastapi import Depends, HTTPException, status, Cookie
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -19,8 +18,6 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-cookie_scheme = HTTPCookie(cookie_name="access_token")
-refresh_cookie_scheme = HTTPCookie(cookie_name="refresh_token")
 
 
 def create_access_token(data: dict) -> str:
@@ -124,7 +121,7 @@ def authenticate_local(db, username: str, password: str) -> User | None:
 
 
 def get_current_user(
-    access_token: str | None = Depends(cookie_scheme),
+    access_token: str | None = Cookie(default=None),
     db=Depends(get_db),
 ) -> User:
     if not access_token:

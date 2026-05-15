@@ -66,7 +66,7 @@ class TestListOpls:
     def test_empty_list(self, client):
         resp = client.get("/api/opls/")
         assert resp.status_code == 200
-        assert resp.json() == []
+        assert resp.json()["items"] == []
 
     def test_list_shows_created(self, client):
         client.post("/api/opls/", json={
@@ -79,7 +79,7 @@ class TestListOpls:
         })
         resp = client.get("/api/opls/")
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 2
         assert data[0]["title"] == "Вторая"
         assert data[0]["step_count"] == 1
@@ -128,7 +128,7 @@ class TestDeleteOpl:
         assert resp.json()["ok"] is True
 
         assert client.get(f"/api/opls/{opl_id}").status_code == 404
-        assert len(client.get("/api/opls/").json()) == 0
+        assert len(client.get("/api/opls/").json()["items"]) == 0
 
     def test_delete_cascades_steps(self, client, db_session):
         from app.models.opl import Step
@@ -332,7 +332,7 @@ class TestFullWorkflow:
 
         # 3. List contains it
         list_resp = client.get("/api/opls/")
-        titles = [item["title"] for item in list_resp.json()]
+        titles = [item["title"] for item in list_resp.json()["items"]]
         assert "Полный workflow" in titles
 
         # 4. Detail shows photos
@@ -372,7 +372,7 @@ class TestSearchOpls:
         })
         resp = client.get("/api/opls/?title=ленты")
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 1
         assert data[0]["title"] == "Замена ленты"
 
@@ -389,7 +389,7 @@ class TestSearchOpls:
         })
         resp = client.get("/api/opls/?description=замене")
         assert resp.status_code == 200
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 1
         assert data[0]["title"] == "A"
 
@@ -399,7 +399,7 @@ class TestSearchOpls:
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         resp = client.get("/api/opls/?title=replacement")
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 1
 
     def test_search_no_match(self, client):
@@ -408,7 +408,7 @@ class TestSearchOpls:
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         resp = client.get("/api/opls/?title=xyz_nonexistent")
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 0
 
     def test_search_combined_or(self, client):
@@ -418,7 +418,7 @@ class TestSearchOpls:
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         resp = client.get("/api/opls/?title=Title A&description=Desc B")
-        data = resp.json()
+        data = resp.json()["items"]
         assert len(data) == 1
 
 
@@ -642,7 +642,7 @@ class TestTags:
         opl_id = create_resp.json()["id"]
         client.post(f"/api/opls/{opl_id}/tags", json={"tag_ids": [tag["id"]]})
         resp = client.get("/api/opls/")
-        data = resp.json()
+        data = resp.json()["items"]
         opl_entry = [d for d in data if d["id"] == opl_id][0]
         assert len(opl_entry["tags"]) == 1
         assert opl_entry["tags"][0]["name"] == "Лист"

@@ -2,12 +2,13 @@
 import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 
-import sys
-from sqlalchemy import create_engine, event
+import uuid
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.models.opl import Base
+from app.models.user import User
 import pytest
 
 engine = create_engine(
@@ -35,9 +36,25 @@ def db_session():
 
 
 @pytest.fixture
-def client(db_session):
+def test_user(db_session):
+    user = User(
+        id=uuid.uuid4(),
+        username="test",
+        email="test@test.local",
+        is_local=True,
+        password_hash="$2b$12$dummy",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def client(db_session, test_user):
     from app.main import create_app
     from app.db.session import get_db
+    from app.services.auth import get_current_user
     from fastapi.testclient import TestClient
 
     app = create_app(init=False)
@@ -45,7 +62,11 @@ def client(db_session):
     def override_get_db():
         yield db_session
 
+    def override_get_current_user():
+        return test_user
+
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_current_user] = override_get_current_user
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()

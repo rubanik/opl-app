@@ -91,7 +91,7 @@ function AuthProvider({ children }) {
   }, []);
 
   const checkAuth = useCallback((onRequireAuth) => {
-    if (user) return true;
+    if (user) { onRequireAuth(); return true; }
     setPendingAction(onRequireAuth);
     setAuthOpen(true);
     return false;

@@ -12,7 +12,8 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate
+from app.models.user import User
+from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut
 from app.services.auth import get_current_user
 import qrcode
 
@@ -59,6 +60,14 @@ def list_opls(
             tag = db.get(OplTag, link.tag_id)
             if tag:
                 tag_map.setdefault(link.opl_id, []).append(tag)
+    author_map = {}
+    if opl_ids:
+        for opl_id in opl_ids:
+            opl_row = db.get(Opl, opl_id)
+            if opl_row and opl_row.created_by:
+                author = db.get(User, opl_row.created_by)
+                if author:
+                    author_map[opl_id] = AuthorOut(username=author.username)
     result = []
     for r in rows:
         result.append(OplListOut(
@@ -66,6 +75,7 @@ def list_opls(
             created_at=r.created_at, updated_at=r.updated_at,
             step_count=step_counts.get(r.id, 0),
             total_duration_sec=duration_totals.get(r.id, 0),
+            author=author_map.get(r.id),
             tags=tag_map.get(r.id, [])
         ))
     return {"items": result, "total": total, "skip": skip, "limit": limit}
@@ -73,7 +83,7 @@ def list_opls(
 
 @router.post("/", response_model=OplOut, status_code=201)
 def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
-    opl = Opl(title=body.title, description=body.description)
+    opl = Opl(title=body.title, description=body.description, created_by=_user.id)
     db.add(opl)
     db.flush()
 
@@ -97,7 +107,8 @@ def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Dep
     opl = db.execute(
         select(Opl).options(
             joinedload(Opl.steps).joinedload(Step.photos),
-            joinedload(Opl.tags)
+            joinedload(Opl.tags),
+            joinedload(Opl.author)
         ).where(Opl.id == opl.id)
     ).unique().scalar_one()
     return opl

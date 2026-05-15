@@ -18,3 +18,5 @@ class User(Base):
     ldap_dn = Column(String(500), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+
+    opls = relationship("Opl", back_populates="author")

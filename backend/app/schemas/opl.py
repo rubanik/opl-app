@@ -56,6 +56,12 @@ class OplTagOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class AuthorOut(BaseModel):
+    username: str
+
+    model_config = {"from_attributes": True}
+
+
 class OplTagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     color: str = "#1976d2"
@@ -78,6 +84,7 @@ class OplOut(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime] = None
+    author: Optional[AuthorOut] = None
     steps: list[StepOut] = []
     tags: list[OplTagOut] = []
 
@@ -104,6 +111,7 @@ class OplListOut(BaseModel):
     updated_at: Optional[datetime] = None
     step_count: int
     total_duration_sec: int = 0
+    author: Optional[AuthorOut] = None
     tags: list[OplTagOut] = []
 
     model_config = {"from_attributes": True}

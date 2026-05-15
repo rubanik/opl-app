@@ -45,9 +45,11 @@ class Opl(Base):
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_by = Column(UUID(), ForeignKey("users.id"), nullable=True)
 
     steps = relationship("Step", back_populates="opl", cascade="all, delete-orphan",
                          order_by="Step.step_number")
+    author = relationship("User", back_populates="opls")
 
 
 class Step(Base):

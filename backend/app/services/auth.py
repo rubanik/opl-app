@@ -53,7 +53,7 @@ def get_password_hash(password: str) -> str:
 
 
 def authenticate_ldap(username: str, password: str) -> dict | None:
-    if not settings.ldap_server or not settings.ldap_base_dn:
+    if not settings.ldap_server:
         return None
     try:
         use_ssl = settings.ldap_use_ssl
@@ -63,6 +63,35 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             use_ssl=use_ssl,
             get_info=ALL,
         )
+
+        # --- Mode 1: User-bind (template, like Grafana) ---
+        if settings.ldap_user_dn_template:
+            user_dn = settings.ldap_user_dn_template.replace("%s", username)
+            logger.info(f"LDAP user-bind for {username}: dn={user_dn}")
+            user_conn = Connection(
+                server,
+                user=user_dn,
+                password=password,
+                authentication="SIMPLE",
+            )
+            if not user_conn.bind():
+                logger.info(f"LDAP user-bind failed for {username}")
+                user_conn.unbind()
+                return None
+            user_conn.unbind()
+            logger.info(f"LDAP user-bind OK for {username}")
+            return {
+                "username": username,
+                "email": None,
+                "display_name": username,
+                "ldap_dn": user_dn,
+            }
+
+        # --- Mode 2: Service-account bind + search (legacy) ---
+        if not settings.ldap_base_dn or not settings.ldap_bind_password:
+            return None
+
+        logger.info(f"LDAP service-bind for {username}: server={settings.ldap_server}:{settings.ldap_port}")
         conn = Connection(
             server,
             user=settings.ldap_bind_dn,
@@ -70,6 +99,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             authentication="SIMPLE",
             auto_bind="READ_ONLY",
         )
+        logger.info(f"LDAP service-bind OK, searching user={username}")
         search_base = settings.ldap_search_base or settings.ldap_base_dn
         search_filter = settings.ldap_user_search.format(username=escape_ldap_filter(username))
         conn.search(
@@ -79,10 +109,12 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             attributes=["dn", "mail", "displayName"],
         )
         if not conn.entries:
+            logger.info(f"LDAP search returned 0 entries for {username} (base={search_base}, filter={search_filter})")
             conn.close()
             return None
         entry = conn.entries[0]
         user_dn = str(entry.entry_dn)
+        logger.info(f"LDAP search found {user_dn} for {username}")
         user_conn = Connection(
             server,
             user=user_dn,
@@ -90,12 +122,14 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             authentication="SIMPLE",
         )
         if not user_conn.bind():
+            logger.info(f"LDAP user-bind failed for {user_dn}")
             conn.close()
             return None
         email = str(entry.mail) if hasattr(entry, 'mail') and entry.mail else None
         display_name = str(entry.displayName) if hasattr(entry, 'displayName') and entry.displayName else username
         conn.close()
         user_conn.close()
+        logger.info(f"LDAP auth OK for {username}")
         return {
             "username": username,
             "email": email,
@@ -103,10 +137,10 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             "ldap_dn": user_dn,
         }
     except LDAPException as e:
-        logger.warning(f"LDAP error for {username}: {e}")
+        logger.error(f"LDAP error for {username}: {type(e).__name__}: {e}")
         return None
     except Exception as e:
-        logger.error(f"LDAP connection error: {e}")
+        logger.error(f"LDAP connection error for {username}: {type(e).__name__}: {e}")
         return None
 
 

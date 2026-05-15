@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     ldap_base_dn: str = ""
     ldap_bind_dn: str = ""
     ldap_bind_password: str = ""
+    ldap_user_dn_template: str = ""
     ldap_user_search: str = "(sAMAccountName={username})"
     ldap_use_ssl: bool = True
     ldap_search_base: str = ""
@@ -35,6 +36,7 @@ class Settings(BaseSettings):
             "ldap_base_dn": "LDAP_BASE_DN",
             "ldap_bind_dn": "LDAP_BIND_DN",
             "ldap_bind_password": "LDAP_BIND_PASSWORD",
+            "ldap_user_dn_template": "LDAP_USER_DN_TEMPLATE",
             "ldap_user_search": "LDAP_USER_SEARCH",
             "ldap_use_ssl": "LDAP_USE_SSL",
             "ldap_search_base": "LDAP_SEARCH_BASE",

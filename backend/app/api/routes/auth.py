@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status, Form
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,12 @@ from app.services.auth import (
 )
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: str | None = None
 
 
 @router.post("/login")

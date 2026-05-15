@@ -249,12 +249,23 @@ export default function OplList() {
       {/* Mobile title */}
       {isMobile && (
         <Box sx={{ mb: 1.5 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
-            Инструкции OPL
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Box>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Инструкции OPL
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
+              </Typography>
+            </Box>
+            {user && (
+              <Tooltip title="Управление тегами" arrow>
+                <IconButton size="small" onClick={() => setTagManagerOpen(true)}>
+                  <TagIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Box>
         </Box>
       )}
 

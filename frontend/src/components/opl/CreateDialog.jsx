@@ -177,28 +177,60 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
             sx={{ borderRadius: 1 }}
           />
           {allTags.length > 0 && (
-            <Autocomplete
-              multiple
-              options={allTags}
-              getOptionLabel={(t) => t.name}
-              value={allTags.filter(t => selectedTags.includes(t.id))}
-              onChange={(_, vals) => setSelectedTags(vals.map(v => v.id))}
-              renderInput={(params) => (
-                <TextField {...params} label="Теги" size="small" placeholder="Выберите теги" />
-              )}
-              renderOption={(props, option, { selected }) => (
-                <li {...props}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                    <Chip
-                      label={option.name}
-                      size="small"
-                      sx={{ bgcolor: option.color, color: 'white', width: 70, fontWeight: 500, borderRadius: 1 }}
-                    />
-                    <Typography variant="body2">{option.name}</Typography>
-                  </Box>
-                </li>
-              )}
-            />
+            isMobile ? (
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Теги
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {allTags.map(tag => {
+                    const active = selectedTags.includes(tag.id);
+                    return (
+                      <Chip
+                        key={tag.id}
+                        label={tag.name}
+                        clickable
+                        onClick={() => setSelectedTags(prev =>
+                          active ? prev.filter(t => t !== tag.id) : [...prev, tag.id]
+                        )}
+                        sx={{
+                          bgcolor: active ? tag.color : 'transparent',
+                          color: active ? 'white' : tag.color,
+                          fontWeight: active ? 600 : 400,
+                          border: `1.5px solid ${tag.color}`,
+                          borderRadius: 2,
+                          transition: 'all 0.15s',
+                          px: 1.5,
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            ) : (
+              <Autocomplete
+                multiple
+                options={allTags}
+                getOptionLabel={(t) => t.name}
+                value={allTags.filter(t => selectedTags.includes(t.id))}
+                onChange={(_, vals) => setSelectedTags(vals.map(v => v.id))}
+                renderInput={(params) => (
+                  <TextField {...params} label="Теги" size="small" placeholder="Выберите теги" />
+                )}
+                renderOption={(props, option, { selected }) => (
+                  <li {...props}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <Chip
+                        label={option.name}
+                        size="small"
+                        sx={{ bgcolor: option.color, color: 'white', width: 70, fontWeight: 500, borderRadius: 1 }}
+                      />
+                      <Typography variant="body2">{option.name}</Typography>
+                    </Box>
+                  </li>
+                )}
+              />
+            )
           )}
 
           <Divider />
@@ -263,7 +295,7 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
                   label="Описание"
                   fullWidth
                   multiline
-                  rows={3}
+                  rows={4}
                   value={step.description}
                   onChange={(e) => updateStep(idx, 'description', e.target.value)}
                   sx={{ mb: 1, borderRadius: 1 }}

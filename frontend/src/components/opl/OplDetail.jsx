@@ -363,7 +363,7 @@ export default function OplDetail() {
                     label="Подробное описание"
                     fullWidth
                     multiline
-                    rows={3}
+                    rows={4}
                     value={step.description}
                     onChange={(e) => updateEditStep(idx, 'description', e.target.value)}
                     sx={{ mb: 1, borderRadius: 1 }}

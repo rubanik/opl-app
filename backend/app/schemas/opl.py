@@ -103,6 +103,7 @@ class OplListOut(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
     step_count: int
+    total_duration_sec: int = 0
     tags: list[OplTagOut] = []
 
     model_config = {"from_attributes": True}

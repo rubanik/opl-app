@@ -43,11 +43,14 @@ def list_opls(
     rows = db.execute(stmt).scalars().all()
     opl_ids = [r.id for r in rows]
     step_counts = {}
+    duration_totals = {}
     if opl_ids:
         for row in db.execute(
-            select(Step.opl_id, func.count(Step.id)).where(Step.opl_id.in_(opl_ids)).group_by(Step.opl_id)
+            select(Step.opl_id, func.count(Step.id), func.coalesce(func.sum(Step.duration_sec), 0))
+            .where(Step.opl_id.in_(opl_ids)).group_by(Step.opl_id)
         ).all():
             step_counts[row[0]] = row[1]
+            duration_totals[row[0]] = row[2]
     tag_map = {}
     if opl_ids:
         for link in db.execute(
@@ -61,7 +64,9 @@ def list_opls(
         result.append(OplListOut(
             id=r.id, title=r.title, description=r.description,
             created_at=r.created_at, updated_at=r.updated_at,
-            step_count=step_counts.get(r.id, 0), tags=tag_map.get(r.id, [])
+            step_count=step_counts.get(r.id, 0),
+            total_duration_sec=duration_totals.get(r.id, 0),
+            tags=tag_map.get(r.id, [])
         ))
     return {"items": result, "total": total, "skip": skip, "limit": limit}
 

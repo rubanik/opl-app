@@ -82,6 +82,8 @@ function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [authOpen, setAuthOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState(null);
+  const [requireAuth, setRequireAuth] = useState(false);
+  const [welcomeToast, setWelcomeToast] = useState({ open: false, username: '' });
 
   useEffect(() => {
     fetch(`${API}/auth/me`)
@@ -100,12 +102,14 @@ function AuthProvider({ children }) {
 
   const checkAuth = useCallback((onRequireAuth) => {
     if (user) { onRequireAuth(); return true; }
+    setRequireAuth(true);
     setPendingAction(onRequireAuth);
     setAuthOpen(true);
     return false;
   }, [user]);
 
   const login = async (credentials) => {
+    const wasRequired = requireAuth;
     const formData = new URLSearchParams();
     formData.set('username', credentials.username);
     formData.set('password', credentials.password);
@@ -120,6 +124,10 @@ function AuthProvider({ children }) {
     const data = await res.json();
     setUser(data.user);
     setAuthOpen(false);
+    setRequireAuth(false);
+    if (!wasRequired) {
+      setWelcomeToast({ open: true, username: data.user.username });
+    }
   };
 
   const register = async (credentials) => {
@@ -143,7 +151,7 @@ function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, authOpen, setAuthOpen, pendingAction, checkAuth, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, authOpen, setAuthOpen, pendingAction, requireAuth, checkAuth, login, register, logout, welcomeToast, setWelcomeToast }}>
       {children}
     </AuthContext.Provider>
   );
@@ -155,7 +163,7 @@ function useAuth() {
 
 /* ---- Auth Dialog ---- */
 function AuthDialog() {
-  const { authOpen, setAuthOpen, pendingAction, login, register } = useAuth();
+  const { authOpen, setAuthOpen, pendingAction, requireAuth, login, register } = useAuth();
   const [mode, setMode] = useState('login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -184,6 +192,11 @@ function AuthDialog() {
     setSaving(false);
   };
 
+  const handleClose = () => {
+    setAuthOpen(false);
+    if (pendingAction) setPendingAction(null);
+  };
+
   const handleTabChange = (_, v) => {
     setTabValue(v);
     setMode(v === 0 ? 'login' : 'register');
@@ -191,7 +204,7 @@ function AuthDialog() {
   };
 
   return (
-    <Dialog open={authOpen} onClose={() => setAuthOpen(false)} maxWidth="xs" fullWidth>
+    <Dialog open={authOpen} onClose={handleClose} maxWidth="xs" fullWidth>
       <DialogTitle>
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label="Вход" />
@@ -200,7 +213,9 @@ function AuthDialog() {
       </DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
-          <Alert severity="info">Для этого действия нужна авторизация</Alert>
+          {requireAuth && (
+            <Alert severity="info">Для этого действия нужна авторизация</Alert>
+          )}
           {error && (
             <Alert severity="error" onClose={() => setError('')}>{error}</Alert>
           )}
@@ -209,6 +224,7 @@ function AuthDialog() {
             fullWidth
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            placeholder="Например: aivanov"
             inputProps={{ minLength: 3 }}
           />
           <TextField
@@ -245,7 +261,7 @@ function AuthDialog() {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={() => { setAuthOpen(false); if (pendingAction) setPendingAction(null); }}>Отмена</Button>
+        <Button onClick={handleClose}>Отмена</Button>
         <Button
           variant="contained"
           onClick={submit}
@@ -1722,7 +1738,7 @@ export default function App() {
 }
 
 function AppInner() {
-  const { loading } = useAuth();
+  const { loading, welcomeToast, setWelcomeToast } = useAuth();
 
   if (loading) {
     return (
@@ -1758,6 +1774,16 @@ function AppInner() {
         </Routes>
       </Container>
       <AuthDialog />
+      <Snackbar
+        open={welcomeToast.open}
+        autoHideDuration={3000}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+        onClose={() => setWelcomeToast({ ...welcomeToast, open: false })}
+      >
+        <Alert severity="success" onClose={() => setWelcomeToast({ ...welcomeToast, open: false })}>
+          Привет, {welcomeToast.username}! Вы успешно авторизовались через корпоративный портал!
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

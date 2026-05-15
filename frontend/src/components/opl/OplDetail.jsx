@@ -429,7 +429,18 @@ export default function OplDetail() {
                         >
                           <DeleteIcon sx={{ fontSize: 14, color: '#d32f2f' }} />
                         </IconButton>
+                        <input
+                          id={`replace-photo-${step.id}-${p.id}`}
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            if (e.target.files[0]) replacePhoto(step.id, p.id, e.target.files[0]);
+                            e.target.value = '';
+                          }}
+                        />
                         <label
+                          htmlFor={`replace-photo-${step.id}-${p.id}`}
                           style={{
                             position: 'absolute', bottom: -4, left: -4,
                             cursor: 'pointer', width: 22, height: 22, borderRadius: '50%',
@@ -438,14 +449,6 @@ export default function OplDetail() {
                           }}
                         >
                           <EditIcon sx={{ fontSize: 12, color: 'text.secondary' }} />
-                          <input
-                            type="file"
-                            accept="image/*"
-                            hidden
-                            onChange={(e) => {
-                              if (e.target.files[0]) replacePhoto(step.id, p.id, e.target.files[0]);
-                            }}
-                          />
                         </label>
                       </Box>
                     ))}

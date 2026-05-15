@@ -292,20 +292,25 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
                     ),
                   }}
                 />
-                <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                <input
+                  id={`create-photo-${idx}`}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  multiple
+                  onChange={(e) => {
+                    Array.from(e.target.files).forEach((f) => addPhoto(idx, f));
+                    e.target.value = '';
+                  }}
+                />
+                <label
+                  htmlFor={`create-photo-${idx}`}
+                  style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.5 }}
+                >
                   <IconButton size="small" color="primary">
                     <PhotoCameraIcon />
                   </IconButton>
                   <Typography variant="body2" color="text.secondary">Фото</Typography>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    hidden
-                    multiple
-                    onChange={(e) => {
-                      Array.from(e.target.files).forEach((f) => addPhoto(idx, f));
-                    }}
-                  />
                 </label>
               </Box>
 

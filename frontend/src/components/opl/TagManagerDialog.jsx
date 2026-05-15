@@ -14,6 +14,8 @@ import {
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 
+import ConfirmDialog from '../common/ConfirmDialog';
+
 const API = '/api';
 
 export default function TagManagerDialog({ open, onClose, onUpdate }) {
@@ -105,6 +107,13 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
       <DialogActions>
         <Button onClick={onClose}>Закрыть</Button>
       </DialogActions>
+      <ConfirmDialog
+        open={confirm.open}
+        title="Удалить тег?"
+        message="Инструкции с этим тегом потеряют его."
+        onConfirm={confirmRemove}
+        onCancel={() => setConfirm({ open: false, tagId: null })}
+      />
     </Dialog>
   );
 }

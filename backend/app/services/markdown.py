@@ -7,7 +7,15 @@ ALLOWED_TAGS = [
     "ul", "ol", "li",
     "pre", "code",
     "blockquote",
+    "a",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "hr",
+    "table", "thead", "tbody", "tr", "th", "td",
 ]
+
+ALLOWED_ATTRIBUTES = {
+    "a": ["href", "title", "target", "rel"],
+}
 
 
 def render_markdown(text: str | None) -> str | None:
@@ -16,13 +24,13 @@ def render_markdown(text: str | None) -> str | None:
 
     html = md_lib.markdown(
         text,
-        extensions=["fenced_code", "codehilite"],
+        extensions=["fenced_code", "codehilite", "tables", "attr_list"],
     )
 
     cleaned = bleach.clean(
         html,
         tags=ALLOWED_TAGS,
-        attributes={},
+        attributes=ALLOWED_ATTRIBUTES,
         strip=True,
     )
 

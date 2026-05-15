@@ -640,8 +640,8 @@ export default function OplDetail() {
                     {step.description_html && (
                       <Box sx={{
                         '& p': { margin: 0 },
-                        '& ul, & ol': { margin: 0, paddingLeft: 18 },
-                        '& ul ul, & ol ol, & ul ol, & ol ul': { paddingLeft: 12 },
+                        '& ul, & ol': { margin: 0, paddingLeft: 12 },
+                        '& ul ul, & ol ol, & ul ol, & ol ul': { paddingLeft: 8 },
                         '& pre': { bgcolor: '#f5f5f5', p: 1.5, borderRadius: 1.5, overflow: 'auto', mt: 1, fontSize: '0.85rem' },
                         '& code': { bgcolor: '#f5f5f5', px: 0.5, py: 0.2, borderRadius: 1, fontSize: '0.85rem' },
                         '& blockquote': { borderLeft: '3px solid #ccc', pl: 1, color: 'text.secondary', margin: 0 },

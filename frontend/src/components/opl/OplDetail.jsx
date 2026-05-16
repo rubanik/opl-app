@@ -353,15 +353,24 @@ export default function OplDetail() {
           onChange={(e) => setEditTitle(e.target.value)}
           sx={{ mb: 2, borderRadius: 2 }}
         />
-        <TextField
-          label="Описание"
-          fullWidth
-          multiline
-          rows={2}
-          value={editDescription}
-          onChange={(e) => setEditDescription(e.target.value)}
-          sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2 }}
-        />
+        <Tooltip title="Поддерживает Markdown" arrow>
+          <TextField
+            label="Описание"
+            fullWidth
+            multiline
+            rows={2}
+            value={editDescription}
+            onChange={(e) => setEditDescription(e.target.value)}
+            sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2 }}
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <CodeIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                </InputAdornment>
+              ),
+            }}
+          />
+        </Tooltip>
 
         {editTags.length > 0 && (
           <Box sx={{ mb: { xs: 2, sm: 3 } }}>

@@ -166,16 +166,25 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
             required
             sx={{ borderRadius: 1 }}
           />
-          <TextField
-            label="Описание"
-            fullWidth
-            multiline
-            rows={2}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Краткое описание инструкции (необязательно)"
-            sx={{ borderRadius: 1 }}
-          />
+          <Tooltip title="Поддерживает Markdown" arrow>
+            <TextField
+              label="Описание"
+              fullWidth
+              multiline
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Краткое описание инструкции (необязательно)"
+              sx={{ borderRadius: 1 }}
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <CodeIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            />
+          </Tooltip>
           {allTags.length > 0 && (
             isMobile ? (
               <Box>

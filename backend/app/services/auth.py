@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import bcrypt
 
-from ldap3 import Server, Connection, SUBTREE
+from ldap3 import Server, Connection, SUBTREE, ALL
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status, Cookie

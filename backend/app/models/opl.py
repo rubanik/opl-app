@@ -37,31 +37,6 @@ class Base(DeclarativeBase):
     pass
 
 
-class OplCollection(Base):
-    __tablename__ = "opl_collections"
-
-    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    name = Column(String(150), nullable=False)
-    description = Column(Text, nullable=True)
-    created_by = Column(UUID(), ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
-    creator = relationship("User", back_populates="collections_created")
-    opls = relationship("Opl", back_populates="collection")
-    tags = relationship("OplTag", back_populates="collection")
-    subscribers = relationship("UserCollectionLink", back_populates="collection", cascade="all, delete-orphan")
-
-
-class UserCollectionLink(Base):
-    __tablename__ = "user_collection_links"
-
-    user_id = Column(UUID(), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="CASCADE"), primary_key=True)
-
-    user = relationship("User", back_populates="collections")
-    collection = relationship("OplCollection", back_populates="subscribers")
-
-
 class Opl(Base):
     __tablename__ = "opls"
 
@@ -71,12 +46,10 @@ class Opl(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(UUID(), ForeignKey("users.id"), nullable=True)
-    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="SET NULL"), nullable=True)
 
     steps = relationship("Step", back_populates="opl", cascade="all, delete-orphan",
                          order_by="Step.step_number")
     author = relationship("User", back_populates="opls")
-    collection = relationship("OplCollection", back_populates="opls")
 
 
 class Step(Base):
@@ -113,9 +86,6 @@ class OplTag(Base):
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     color = Column(String(7), default="#1976d2")
-    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="CASCADE"), nullable=True)
-
-    collection = relationship("OplCollection", back_populates="tags")
 
 
 class OplTagLink(Base):
@@ -124,29 +94,22 @@ class OplTagLink(Base):
     opl_id = Column(UUID(), ForeignKey("opls.id", ondelete="CASCADE"), primary_key=True)
     tag_id = Column(UUID(), ForeignKey("opl_tags.id", ondelete="CASCADE"), primary_key=True)
 
-    opl = relationship("Opl", back_populates="tag_links")
-    tag = relationship("OplTag", back_populates="opl_links")
-
 
 Opl.tag_links = relationship(
-    "OplTagLink", back_populates="opl", cascade="all, delete-orphan",
-    overlaps="tags"
+    "OplTagLink", back_populates="opl", cascade="all, delete-orphan"
 )
 Opl.tags = relationship(
-    "OplTag", secondary="opl_tag_links", back_populates="opls",
-    overlaps="tag_links"
+    "OplTag", secondary="opl_tag_links", back_populates="opls"
 )
 OplTag.opls = relationship(
-    "Opl", secondary="opl_tag_links", back_populates="tags",
-    overlaps="tag_links"
+    "Opl", secondary="opl_tag_links", back_populates="tags"
 )
 OplTag.opl_links = relationship(
-    "OplTagLink", back_populates="tag", cascade="all, delete-orphan",
-    overlaps="opls,tags"
+    "OplTagLink", back_populates="tag", cascade="all, delete-orphan"
 )
 OplTagLink.opl = relationship(
-    "Opl", back_populates="tag_links", overlaps="tags"
+    "Opl", back_populates="tag_links"
 )
 OplTagLink.tag = relationship(
-    "OplTag", back_populates="opl_links", overlaps="opls,tags"
+    "OplTag", back_populates="opl_links"
 )

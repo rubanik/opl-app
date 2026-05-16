@@ -41,7 +41,6 @@ import EmptyState from '../common/EmptyState';
 import { ListSkeleton } from '../common/LoadingSkeleton';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../../hooks/useApi';
-import { useCollectionsContext } from '../../contexts/CollectionsContext';
 
 const API = '/api';
 const APP_URL = window.location.origin;
@@ -68,12 +67,8 @@ export default function OplList() {
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
-  const { activeCollectionId, collections } = useCollectionsContext();
   const isMobile = useMediaQuery('(max-width:600px)');
 
-  const activeCollection = collections.find(c => c.id === activeCollectionId);
-
-  // Read query param on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const qParam = params.get('q');
@@ -83,7 +78,6 @@ export default function OplList() {
     }
   }, []);
 
-  // Resolve tag param after allTags loaded
   useEffect(() => {
     if (!allTags.length) return;
     const params = new URLSearchParams(window.location.search);
@@ -94,6 +88,10 @@ export default function OplList() {
     if (ids.length) setSelectedTagIds(ids);
   }, [allTags]);
 
+  useEffect(() => {
+    fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
+  }, []);
+
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
     const params = new URLSearchParams();
@@ -103,9 +101,6 @@ export default function OplList() {
     }
     if (selectedTagIds.length > 0) {
       selectedTagIds.forEach(tid => params.append('tag_ids', tid));
-    }
-    if (activeCollectionId) {
-      params.set('collection_id', activeCollectionId);
     }
     params.set('skip', String((currentPage - 1) * ITEMS_PER_PAGE));
     params.set('limit', String(ITEMS_PER_PAGE));
@@ -122,19 +117,13 @@ export default function OplList() {
     }
     setOpls(items);
     setLoading(false);
-  }, [selectedTagIds, sortBy, currentPage, activeCollectionId]);
+  }, [selectedTagIds, sortBy, currentPage]);
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   useEffect(() => { fetchOpls(); }, [fetchOpls]);
   useEffect(() => { setCurrentPage(1); }, [selectedTagIds, sortBy, searchQuery]);
-  useEffect(() => {
-    if (activeCollectionId) {
-      fetch(`${API}/collections/${activeCollectionId}/tags`).then(r => r.json()).then(setAllTags);
-    }
-  }, [activeCollectionId]);
 
-  // Share link & description
   const hasActiveFilters = selectedTagIds.length > 0 || debouncedQuery;
   const shareTagNames = useMemo(() =>
     selectedTagIds.map(tid => allTags.find(t => t.id === tid)?.name).filter(Boolean),
@@ -142,20 +131,18 @@ export default function OplList() {
   );
   const shareUrl = useMemo(() => {
     const url = new URL(APP_URL);
-    if (activeCollectionId) url.searchParams.set('collection', activeCollectionId);
     if (shareTagNames.length) url.searchParams.set('tag', shareTagNames.join(','));
     if (debouncedQuery) url.searchParams.set('q', debouncedQuery);
     return url.toString();
-  }, [shareTagNames, debouncedQuery, activeCollectionId]);
+  }, [shareTagNames, debouncedQuery]);
   const shareDescription = useMemo(() => {
     const parts = [];
-    if (activeCollection) parts.push(`коллекция: ${activeCollection.name}`);
-    if (shareTagNames.length) parts.push(`тег: ${shareTagNames.join(', ')}`);
-    if (debouncedQuery) parts.push(`запрос: "${debouncedQuery}"`);
+    if (shareTagNames.length) parts.push(`по тегу: ${shareTagNames.join(', ')}`);
+    if (debouncedQuery) parts.push(`с запросом: "${debouncedQuery}"`);
     return parts.length
-      ? `Инструкции (${parts.join(', ')}): ${total} шт.`
+      ? `Инструкции ${parts.join(', ')} (${total} шт.)`
       : `Все инструкции (${total} шт.)`;
-  }, [shareTagNames, debouncedQuery, total, activeCollection]);
+  }, [shareTagNames, debouncedQuery, total]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -257,7 +244,6 @@ export default function OplList() {
 
   return (
     <Box>
-      {/* Page title + action buttons - desktop */}
       {!isMobile && (
         <Box sx={{
           display: 'flex',
@@ -307,7 +293,6 @@ export default function OplList() {
         </Box>
       )}
 
-      {/* Mobile title */}
       {isMobile && (
         <Box sx={{ mb: 1.5 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -340,7 +325,6 @@ export default function OplList() {
         </Box>
       )}
 
-      {/* Search + sort */}
       <Box sx={{ display: 'flex', gap: 1, mb: { xs: 1.5, sm: 2 } }}>
         <Fade in timeout={200}>
           <TextField
@@ -390,7 +374,6 @@ export default function OplList() {
         )}
       </Box>
 
-      {/* Tags filter */}
       {allTags.length > 0 && (
         <Box sx={{ mb: { xs: 1.5, sm: 2 } }}>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
@@ -429,7 +412,6 @@ export default function OplList() {
         </Box>
       )}
 
-      {/* OPL List */}
       <Stack spacing={{ xs: 1, sm: 2 }}>
         {loading ? (
           <ListSkeleton count={3} />
@@ -453,7 +435,6 @@ export default function OplList() {
         )}
       </Stack>
 
-      {/* Pagination */}
       {totalPages > 1 && (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
           <Pagination
@@ -467,7 +448,6 @@ export default function OplList() {
         </Box>
       )}
 
-      {/* FAB for mobile */}
       {isMobile && user && (
         <Fab
           size="medium"
@@ -479,7 +459,6 @@ export default function OplList() {
         </Fab>
       )}
 
-      {/* Dialogs */}
       <CreateDialog
         open={newOpen}
         onClose={() => setNewOpen(false)}
@@ -490,9 +469,7 @@ export default function OplList() {
         open={tagManagerOpen}
         onClose={() => setTagManagerOpen(false)}
         onUpdate={() => {
-          if (activeCollectionId) {
-            fetch(`${API}/collections/${activeCollectionId}/tags`).then(r => r.json()).then(setAllTags);
-          }
+          fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
           fetchOpls();
         }}
       />
@@ -508,7 +485,6 @@ export default function OplList() {
         onCancel={handleDeleteConfirm}
       />
 
-      {/* Share QR Dialog */}
       <Dialog open={shareQrOpen} onClose={() => setShareQrOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -582,7 +558,6 @@ export default function OplList() {
         </DialogActions>
       </Dialog>
 
-      {/* Toasts */}
       <Snackbar
         open={undoDelete.open}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}

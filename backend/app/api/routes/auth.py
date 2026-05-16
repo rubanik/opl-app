@@ -11,7 +11,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.db.session import get_db
 from app.models.user import User
-from app.models.opl import OplCollection, UserCollectionLink
 from app.services.auth import (
     authenticate_ldap,
     authenticate_local,
@@ -169,19 +168,7 @@ def register(
 
 
 @router.get("/me")
-def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    links = db.execute(
-        select(UserCollectionLink.collection_id).where(UserCollectionLink.user_id == user.id)
-    ).scalars().all()
-    collections = (
-        db.execute(
-            select(OplCollection)
-            .where(OplCollection.id.in_(links))
-            .order_by(OplCollection.name)
-        )
-        .scalars()
-        .all()
-    )
+def me(user: User = Depends(get_current_user)):
     return {
         "id": str(user.id),
         "username": user.username,
@@ -194,10 +181,6 @@ def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         "employee_id": user.employee_id,
         "created_at": user.created_at,
         "last_login": user.last_login,
-        "collections": [
-            {"id": str(c.id), "name": c.name, "description": c.description}
-            for c in collections
-        ],
     }
 
 

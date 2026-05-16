@@ -16,8 +16,6 @@ import TimerIcon from '@mui/icons-material/Timer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import DescriptionIcon from '@mui/icons-material/Description';
 import StepIcon from '@mui/icons-material/MenuBook';
-import FolderIcon from '@mui/icons-material/Folder';
-
 export default function OplCard({ opl, onDelete, user }) {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width:600px)');
@@ -60,7 +58,6 @@ export default function OplCard({ opl, onDelete, user }) {
   };
 
   const authorName = getAuthorName();
-  const collectionName = opl.collection?.name;
 
   return (
     <>

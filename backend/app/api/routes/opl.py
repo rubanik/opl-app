@@ -12,9 +12,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink, OplCollection, UserCollectionLink
+from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplCollectionOut
+from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut
 from app.services.auth import get_current_user
 import qrcode
 
@@ -26,7 +26,6 @@ def list_opls(
     title: str | None = Query(None),
     description: str | None = Query(None),
     tag_ids: list[uuid.UUID] | None = Query(None),
-    collection_id: uuid.UUID | None = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
@@ -39,21 +38,13 @@ def list_opls(
     if description:
         conditions.append(Opl.description.ilike(func.concat('%', description, '%')))
     if tag_ids and len(tag_ids) > 0:
-        # Filter tags to only those belonging to the collection (if specified)
-        tag_filter = [OplTagLink.tag_id.in_(tag_ids)]
-        if collection_id:
-            tag_filter.append(OplTag.collection_id == collection_id)
         tagged_ids = list(db.execute(
-            select(OplTagLink.opl_id)
-            .join(OplTag, OplTagLink.tag_id == OplTag.id)
-            .where(*tag_filter)
+            select(OplTagLink.opl_id).where(OplTagLink.tag_id.in_(tag_ids))
         ).scalars().all())
         if tagged_ids:
             conditions.append(Opl.id.in_(tagged_ids))
         else:
             conditions.append(Opl.id == uuid.UUID(int=0))
-    if collection_id:
-        conditions.append(Opl.collection_id == collection_id)
     if conditions:
         stmt = stmt.where(or_(*conditions))
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar()
@@ -78,7 +69,6 @@ def list_opls(
             if tag:
                 tag_map.setdefault(link.opl_id, []).append(tag)
     author_map = {}
-    collection_map = {}
     if opl_ids:
         for opl_id in opl_ids:
             opl_row = db.get(Opl, opl_id)
@@ -91,18 +81,11 @@ def list_opls(
                             surname=author.surname,
                             given_name=author.given_name
                         )
-                if opl_row.collection_id:
-                    coll = db.get(OplCollection, opl_row.collection_id)
-                    if coll:
-                        collection_map[opl_id] = OplCollectionOut(
-                            id=coll.id, name=coll.name, description=coll.description, created_at=coll.created_at
-                        )
     result = []
     for r in rows:
         result.append(OplListOut(
             id=r.id, title=r.title, description=r.description,
             created_at=r.created_at, updated_at=r.updated_at,
-            collection=collection_map.get(r.id),
             step_count=step_counts.get(r.id, 0),
             total_duration_sec=duration_totals.get(r.id, 0),
             author=author_map.get(r.id),
@@ -113,27 +96,7 @@ def list_opls(
 
 @router.post("/", response_model=OplOut, status_code=201)
 def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
-    # Check collection exists and user is subscribed
-    coll = db.get(OplCollection, body.collection_id)
-    if not coll:
-        raise HTTPException(404, "Коллекция не найдена")
-    
-    subscribed = db.execute(
-        select(UserCollectionLink).where(
-            UserCollectionLink.user_id == _user.id,
-            UserCollectionLink.collection_id == body.collection_id,
-        )
-    ).scalar_one_or_none()
-    if not subscribed:
-        raise HTTPException(403, "Вы не подписаны на эту коллекцию")
-    
-    # Check tags belong to the same collection
-    for tag_id in body.tags:
-        tag = db.get(OplTag, tag_id)
-        if not tag or tag.collection_id != body.collection_id:
-            raise HTTPException(400, f"Тег не принадлежит коллекции")
-    
-    opl = Opl(title=body.title, description=body.description, created_by=_user.id, collection_id=body.collection_id)
+    opl = Opl(title=body.title, description=body.description, created_by=_user.id)
     db.add(opl)
     db.flush()
 
@@ -156,8 +119,7 @@ def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Dep
         select(Opl).options(
             joinedload(Opl.steps).joinedload(Step.photos),
             joinedload(Opl.tags),
-            joinedload(Opl.author),
-            joinedload(Opl.collection)
+            joinedload(Opl.author)
         ).where(Opl.id == opl.id)
     ).unique().scalar_one()
     return opl
@@ -283,15 +245,9 @@ def replace_photo(
 
 @router.get("/tags", response_model=list[OplTagOut])
 def list_tags(
-    collection_id: uuid.UUID | None = Query(None),
     db: Session = Depends(get_db),
 ):
     stmt = select(OplTag).order_by(OplTag.name)
-    if collection_id:
-        stmt = stmt.where(OplTag.collection_id == collection_id)
-    else:
-        # Backward compat: tags without collection
-        stmt = stmt.where(OplTag.collection_id.is_(None))
     return db.execute(stmt).scalars().all()
 
 
@@ -323,8 +279,7 @@ def get_opl(opl_id: uuid.UUID, db: Session = Depends(get_db)):
         select(Opl).options(
             joinedload(Opl.steps).joinedload(Step.photos),
             joinedload(Opl.tags),
-            joinedload(Opl.author),
-            joinedload(Opl.collection)
+            joinedload(Opl.author)
         ).where(Opl.id == opl_id)
     ).unique().scalar_one_or_none()
     if not opl:
@@ -412,13 +367,7 @@ def link_tags(opl_id: uuid.UUID, body: OplTagLinkCreate, db: Session = Depends(g
     opl = db.get(Opl, opl_id)
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
-    
-    # Validate tags belong to the same collection
-    for tag_id in body.tag_ids:
-        tag = db.get(OplTag, tag_id)
-        if not tag or tag.collection_id != opl.collection_id:
-            raise HTTPException(400, f"Тег не принадлежит коллекции инструкции")
-    
+
     for link in opl.tag_links:
         db.delete(link)
     for tag_id in body.tag_ids:

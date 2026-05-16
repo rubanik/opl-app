@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   CssBaseline,
@@ -6,20 +6,13 @@ import {
   Toolbar,
   Typography,
   Box,
-  Container,
-  IconButton,
   Snackbar,
   Alert,
   useMediaQuery,
   ThemeProvider,
   createTheme,
-  Drawer,
-  Drawer as MuiDrawer,
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import { HeaderUserArea } from '../auth/AuthProvider';
-import CollectionSidebar from '../collections/CollectionSidebar';
 
 const theme = createTheme({
   palette: {
@@ -54,29 +47,16 @@ const theme = createTheme({
   },
 });
 
-const DRAWER_WIDTH = 240;
-
 export default function AppLayout({ children, welcomeToast, setWelcomeToast }) {
   const isMobile = useMediaQuery('(max-width:600px)');
-  const [sidebarOpen, setSidebarOpen] = useState(!isMobile);
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       <CssBaseline />
       <AppBar position="fixed" elevation={0} sx={{
         bgcolor: 'primary.main',
-        ml: { sm: sidebarOpen ? DRAWER_WIDTH : 0 },
-        transition: 'margin 0.2s',
       }}>
         <Toolbar>
-          <IconButton
-            edge="start"
-            color="inherit"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            sx={{ mr: 1 }}
-          >
-            {sidebarOpen ? <ChevronLeftIcon /> : <MenuIcon />}
-          </IconButton>
           <Typography
             variant={isMobile ? 'subtitle1' : 'h6'}
             component={RouterLink}
@@ -95,47 +75,12 @@ export default function AppLayout({ children, welcomeToast, setWelcomeToast }) {
         </Toolbar>
       </AppBar>
 
-      {isMobile ? (
-        <Drawer
-          variant="temporary"
-          open={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-          sx={{
-            width: DRAWER_WIDTH,
-            flexShrink: 0,
-            '& .MuiDrawer-paper': { width: DRAWER_WIDTH, boxSizing: 'border-box', top: 56 },
-          }}
-        >
-          <CollectionSidebar />
-        </Drawer>
-      ) : (
-        <MuiDrawer
-          variant="permanent"
-          sx={{
-            width: sidebarOpen ? DRAWER_WIDTH : 0,
-            flexShrink: 0,
-            transition: 'width 0.2s',
-            '& .MuiDrawer-paper': {
-              width: sidebarOpen ? DRAWER_WIDTH : 0,
-              overflowX: 'hidden',
-              transition: 'width 0.2s',
-              top: 64,
-              height: 'calc(100% - 64px)',
-              borderRight: sidebarOpen ? '1px solid #e0e0e0' : 'none',
-            },
-          }}
-        >
-          <CollectionSidebar />
-        </MuiDrawer>
-      )}
-
       <Box sx={{
         pt: 8,
         pb: 3,
         px: { xs: 1.5, sm: 3 },
-        ml: { sm: sidebarOpen ? DRAWER_WIDTH : 0 },
-        maxWidth: { sm: `calc(100% - ${sidebarOpen ? DRAWER_WIDTH : 0}px)` },
-        transition: 'all 0.2s',
+        maxWidth: '1200px',
+        mx: 'auto',
         minHeight: 'calc(100vh - 64px)',
       }}>
         {children}

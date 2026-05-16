@@ -184,11 +184,26 @@ export default function OplDetail() {
 
   const confirmDeletePhoto = async () => {
     if (!confirm.stepId || !confirm.photoId) return;
-    await fetch(`${API}/opls/steps/${confirm.stepId}/photos/${confirm.photoId}`, { method: 'DELETE' });
-    const res = await fetch(`${API}/opls/${id}`);
-    const data = await res.json();
-    setOpl(data);
+    const { stepId, photoId } = confirm;
     setConfirm({ open: false, stepId: null, photoId: null });
+
+    // Optimistically remove from local state
+    setEditSteps(prev => prev.map(s =>
+      s.id === stepId
+        ? { ...s, photos: (s.photos || []).filter(p => p.id !== photoId) }
+        : s
+    ));
+
+    // Delete on server in background
+    try {
+      await fetch(`${API}/opls/steps/${stepId}/photos/${photoId}`, { method: 'DELETE' });
+    } catch (e) {
+      // Restore on failure
+      const res = await fetch(`${API}/opls/${id}`);
+      const data = await res.json();
+      setEditSteps(data.steps.map(s => ({ ...s, photos: s.photos || [] })));
+      setSnack({ open: true, msg: 'Ошибка удаления фото', severity: 'error' });
+    }
   };
 
   const uploadPhotoToStep = async (step, file) => {

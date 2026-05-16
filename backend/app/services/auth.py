@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import logging
 import bcrypt
 
-from ldap3 import Server, Connection, SUBTREE, ALL
+from ldap3 import Server, Connection, SUBTREE
 from ldap3.core.exceptions import LDAPException
 from jose import jwt, JWTError
 from fastapi import Depends, HTTPException, status, Cookie
@@ -81,21 +81,33 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 user_conn.unbind()
                 return None
 
-            # Fetch user attributes after successful bind
+            # Fetch user attributes in separate search connection
             attrs = {}
             try:
-                user_conn.search(
+                search_conn = Connection(
+                    server,
+                    user=user_dn,
+                    password=password,
+                    authentication="SIMPLE",
+                    auto_bind=False,
+                )
+                search_conn.bind()
+                search_conn.search(
                     search_base=user_dn,
                     search_filter="(objectClass=person)",
                     search_scope="BASE",
                     attributes=["sn", "givenName", "title", "mail", "department", "extensionAttribute9"],
                 )
-                if user_conn.entries:
-                    entry = user_conn.entries[0]
-                    for attr in ["sn", "givenName", "title", "mail", "department", "extensionAttribute9"]:
-                        val = entry[attr].value if attr in entry else None
-                        if val:
-                            attrs[attr] = str(val)
+                if search_conn.entries:
+                    entry = search_conn.entries[0]
+                    for attr_name in ["sn", "givenName", "title", "mail", "department", "extensionAttribute9"]:
+                        try:
+                            val = entry[attr_name].value
+                            if val:
+                                attrs[attr_name] = str(val)
+                        except Exception:
+                            pass
+                search_conn.unbind()
             except Exception as e:
                 logger.warning(f"LDAP attribute fetch failed for {username}: {type(e).__name__}: {e}")
 

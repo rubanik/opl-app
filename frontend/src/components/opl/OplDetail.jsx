@@ -90,18 +90,42 @@ export default function OplDetail() {
       .catch(() => { setError(true); setLoading(false); });
   }, [id]);
 
+  // Guard: exit edit mode if user is not authenticated
+  useEffect(() => {
+    if (editing && !user) {
+      setEditing(false);
+    }
+  }, [user, editing]);
+
   const startEdit = async () => {
-    checkAuth(() => {
-      setEditTitle(opl.title);
-      setEditDescription(opl.description || '');
-      setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
-      setEditSelectedTagIds(opl.tags.map(t => t.id));
-      fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
-      setEditing(true);
-    });
+    if (!user) {
+      checkAuth(() => {
+        setEditTitle(opl.title);
+        setEditDescription(opl.description || '');
+        setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
+        setEditSelectedTagIds(opl.tags.map(t => t.id));
+        fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
+        setEditing(true);
+      });
+      return;
+    }
+    setEditTitle(opl.title);
+    setEditDescription(opl.description || '');
+    setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
+    setEditSelectedTagIds(opl.tags.map(t => t.id));
+    fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
+    setEditing(true);
   };
 
   const handleDeleteOpl = async () => {
+    if (!user) {
+      checkAuth(() => {
+        setDeleteOplConfirm(false);
+        apiDelete(`/opls/${id}`);
+        navigate('/');
+      });
+      return;
+    }
     setDeleteOplConfirm(false);
     await apiDelete(`/opls/${id}`);
     navigate('/');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../components/auth/AuthProvider';
 
 const API = '/api';
@@ -8,26 +8,41 @@ export function useCollections(refetchKey = 0) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [activeCollectionId, setActiveCollectionId] = useState(null);
+  const activeIdRef = useRef(activeCollectionId);
+  activeIdRef.current = activeCollectionId;
+
+  const setCollectionById = useCallback((id) => {
+    setActiveCollectionId(id);
+    const params = new URLSearchParams(window.location.search);
+    params.set('collection', id);
+    window.history.replaceState(null, '', `?${params.toString()}`);
+  }, []);
 
   const fetchCollections = useCallback(async () => {
-    if (!user) {
-      setCollections([]);
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch(`${API}/collections/`);
       const data = await res.json();
-      setCollections(data.items || []);
-      if (!activeCollectionId && data.items?.length) {
-        const defaultColl = data.items.find(c => c.name === 'Общие');
-        setActiveCollectionId(defaultColl?.id || data.items[0].id);
+      const items = data.items || [];
+      setCollections(items);
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlCollection = urlParams.get('collection');
+      const currentId = activeIdRef.current;
+      if (urlCollection && items.find(c => c.id === urlCollection)) {
+        setCollectionById(urlCollection);
+      } else if (!currentId) {
+        const defaultColl = items.find(c => c.name === 'Общие');
+        if (defaultColl) {
+          setCollectionById(defaultColl.id);
+        } else if (items.length) {
+          setCollectionById(items[0].id);
+        }
       }
     } catch (e) {
       console.error('Failed to fetch collections:', e);
     }
     setLoading(false);
-  }, [user, activeCollectionId]);
+  }, [user, setCollectionById]);
 
   useEffect(() => {
     fetchCollections();
@@ -60,7 +75,7 @@ export function useCollections(refetchKey = 0) {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error(await res.json().then(d => d.detail || 'Ошибка'));
-    if (activeCollectionId === collectionId) {
+    if (activeIdRef.current === collectionId) {
       setActiveCollectionId(null);
     }
     await fetchCollections();
@@ -79,7 +94,7 @@ export function useCollections(refetchKey = 0) {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error(await res.json().then(d => d.detail || 'Ошибка'));
-    if (activeCollectionId === collectionId) {
+    if (activeIdRef.current === collectionId) {
       setActiveCollectionId(null);
     }
     await fetchCollections();
@@ -89,7 +104,7 @@ export function useCollections(refetchKey = 0) {
     collections,
     loading,
     activeCollectionId,
-    setActiveCollectionId,
+    setActiveCollectionId: setCollectionById,
     fetchCollections,
     createCollection,
     updateCollection,

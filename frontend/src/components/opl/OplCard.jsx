@@ -16,6 +16,7 @@ import TimerIcon from '@mui/icons-material/Timer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import DescriptionIcon from '@mui/icons-material/Description';
 import StepIcon from '@mui/icons-material/MenuBook';
+import FolderIcon from '@mui/icons-material/Folder';
 
 export default function OplCard({ opl, onDelete, user }) {
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ export default function OplCard({ opl, onDelete, user }) {
   };
 
   const authorName = getAuthorName();
+  const collectionName = opl.collection?.name;
 
   return (
     <>
@@ -122,6 +124,18 @@ export default function OplCard({ opl, onDelete, user }) {
               )}
 
               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>
+                {collectionName && collectionName !== 'Общие' && (
+                  <Chip
+                    label={collectionName}
+                    size="small"
+                    icon={<FolderIcon sx={{ fontSize: 11 }} />}
+                    sx={{
+                      bgcolor: '#f5f5f5', color: 'text.secondary',
+                      fontWeight: 500, fontSize: '0.65rem', height: 20,
+                      borderRadius: 1,
+                    }}
+                  />
+                )}
                 {opl.author && (
                   <Tooltip title={authorName} arrow>
                     <Avatar

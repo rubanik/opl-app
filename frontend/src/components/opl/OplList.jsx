@@ -68,8 +68,10 @@ export default function OplList() {
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
-  const { activeCollectionId } = useCollectionsContext();
+  const { activeCollectionId, collections } = useCollectionsContext();
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  const activeCollection = collections.find(c => c.id === activeCollectionId);
 
   // Read query param on mount
   useEffect(() => {
@@ -140,18 +142,20 @@ export default function OplList() {
   );
   const shareUrl = useMemo(() => {
     const url = new URL(APP_URL);
+    if (activeCollectionId) url.searchParams.set('collection', activeCollectionId);
     if (shareTagNames.length) url.searchParams.set('tag', shareTagNames.join(','));
     if (debouncedQuery) url.searchParams.set('q', debouncedQuery);
     return url.toString();
-  }, [shareTagNames, debouncedQuery]);
+  }, [shareTagNames, debouncedQuery, activeCollectionId]);
   const shareDescription = useMemo(() => {
     const parts = [];
-    if (shareTagNames.length) parts.push(`по тегу: ${shareTagNames.join(', ')}`);
-    if (debouncedQuery) parts.push(`с запросом: "${debouncedQuery}"`);
+    if (activeCollection) parts.push(`коллекция: ${activeCollection.name}`);
+    if (shareTagNames.length) parts.push(`тег: ${shareTagNames.join(', ')}`);
+    if (debouncedQuery) parts.push(`запрос: "${debouncedQuery}"`);
     return parts.length
-      ? `Инструкции ${parts.join(', ')} (${total} шт.)`
+      ? `Инструкции (${parts.join(', ')}): ${total} шт.`
       : `Все инструкции (${total} шт.)`;
-  }, [shareTagNames, debouncedQuery, total]);
+  }, [shareTagNames, debouncedQuery, total, activeCollection]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -26,12 +26,13 @@ class Settings(BaseSettings):
     jwt_access_minutes: int = 60
     jwt_refresh_minutes: int = 10080  # 7 days
 
-    # S3
+    # S3 / Storage
     s3_endpoint_url: str = ""
     s3_bucket: str = "opl-photos"
     s3_access_key: str = ""
     s3_secret_key: str = ""
     s3_region: str = "us-east-1"
+    photo_storage_dir: str = "/app/photos"
 
     @classmethod
     def environment_variable_names(cls) -> dict[str, str]:

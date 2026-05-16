@@ -22,7 +22,7 @@ def upgrade() -> None:
     except Exception:
         pass
 
-    # 2. Migrate existing photo.data -> S3
+    # 2. Migrate existing photo.data -> filesystem
     try:
         with eng.connect() as conn:
             rows = conn.execute(
@@ -30,7 +30,7 @@ def upgrade() -> None:
             ).fetchall()
             if not rows:
                 return
-            logger.info(f"[migrate_photos_s3] Migrating {len(rows)} photos to S3")
+            logger.info(f"[migrate_photos_s3] Migrating {len(rows)} photos to filesystem")
             for row in rows:
                 photo_id, data, mime_type = row[0], row[1], row[2]
                 key = f"{uuid.uuid4()}.jpg"

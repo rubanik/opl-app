@@ -1,29 +1,33 @@
 from __future__ import annotations
 
 import uuid
+import os
+import shutil
+import tempfile
 from io import BytesIO
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import pytest
 
 from app.services.storage import upload_photo, download_photo, delete_photo
 
 
-class TestS3UploadPhoto:
-    def test_upload_photo_to_s3(self, client, sample_image_bytes):
-        """Upload should store to S3 when not in TESTING mode."""
+@pytest.fixture
+def tmp_storage_dir(monkeypatch):
+    d = tempfile.mkdtemp()
+    monkeypatch.setattr("app.services.storage._STORAGE_DIR", d)
+    yield d
+    shutil.rmtree(d, ignore_errors=True)
+
+
+class TestFSUploadPhoto:
+    def test_upload_photo_to_fs(self, client, sample_image_bytes, tmp_storage_dir):
         create_resp = client.post("/api/opls/", json={
-            "title": "S3 Photo",
+            "title": "FS Photo",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
-
-        mock_upload = MagicMock(return_value="test-key.jpg")
-        with patch("app.services.storage.get_s3_client") as mock_s3:
-            mock_s3.return_value = MagicMock()
-            with patch("app.api.routes.opl.upload_photo", side_effect=lambda *a, **k: None):
-                pass
 
         with BytesIO(sample_image_bytes) as f:
             resp = client.post(
@@ -52,17 +56,15 @@ class TestS3UploadPhoto:
         assert resp.status_code == 200
         photo_id = resp.json()["id"]
 
-        # Verify photo can be retrieved
         get_resp = client.get(f"/api/opls/{opl_id}/photos/{photo_id}")
         assert get_resp.status_code == 200
         assert get_resp.content == sample_image_bytes
 
 
-class TestS3GetPhoto:
-    def test_get_photo_from_s3(self, client, sample_image_bytes):
-        """GET photo should download from S3 when s3_key is set (mocked)."""
+class TestFSGetPhoto:
+    def test_get_photo_from_fs(self, client, sample_image_bytes):
         create_resp = client.post("/api/opls/", json={
-            "title": "S3 GET",
+            "title": "FS GET",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -85,11 +87,10 @@ class TestS3GetPhoto:
         assert resp.status_code == 404
 
 
-class TestS3DeletePhoto:
-    def test_delete_photo_removes_from_s3(self, client, sample_image_bytes):
-        """Delete should remove photo from S3 and DB."""
+class TestFSDeletePhoto:
+    def test_delete_photo_removes_from_fs(self, client, sample_image_bytes):
         create_resp = client.post("/api/opls/", json={
-            "title": "S3 Del",
+            "title": "FS Del",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -111,11 +112,10 @@ class TestS3DeletePhoto:
         assert resp.status_code == 404
 
 
-class TestS3ReplacePhoto:
-    def test_replace_photo_updates_s3(self, client, sample_image_bytes):
-        """PUT photo should replace S3 object and update s3_key."""
+class TestFSReplacePhoto:
+    def test_replace_photo_updates_fs(self, client, sample_image_bytes):
         create_resp = client.post("/api/opls/", json={
-            "title": "S3 Replace",
+            "title": "FS Replace",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -159,69 +159,59 @@ class TestS3ReplacePhoto:
 
 
 class TestStorageModule:
-    def test_upload_photo_calls_put_object(self):
-        mock_client = MagicMock()
-        with patch("app.services.storage.get_s3_client", return_value=mock_client):
-            with patch("app.services.storage.settings") as mock_settings:
-                mock_settings.s3_endpoint_url = "http://test"
-                mock_settings.s3_access_key = "test"
-                mock_settings.s3_secret_key = "test"
-                mock_settings.s3_region = "us-east-1"
-                mock_settings.s3_bucket = "test-bucket"
+    def test_upload_photo_writes_file(self, tmp_storage_dir):
+        key = "test_upload.jpg"
+        data = b"fake image data"
+        upload_photo(key, data, "image/jpeg")
 
-                upload_photo("key.jpg", b"imagedata", "image/jpeg")
+        path = os.path.join(tmp_storage_dir, key)
+        assert os.path.exists(path)
+        with open(path, "rb") as f:
+            assert f.read() == data
 
-        mock_client.put_object.assert_called_once_with(
-            Bucket="test-bucket",
-            Key="key.jpg",
-            Body=b"imagedata",
-            ContentType="image/jpeg",
-        )
+    def test_download_photo_reads_file(self, tmp_storage_dir):
+        key = "test_download.png"
+        path = os.path.join(tmp_storage_dir, key)
+        with open(path, "wb") as f:
+            f.write(b"image content")
 
-    def test_download_photo_calls_get_object(self):
-        mock_body = MagicMock()
-        mock_body.read.return_value = b"imagedata"
-        mock_client = MagicMock()
-        mock_client.get_object.return_value = {
-            "Body": mock_body,
-            "ContentType": "image/png",
-        }
-        with patch("app.services.storage.get_s3_client", return_value=mock_client):
-            with patch("app.services.storage.settings") as mock_settings:
-                mock_settings.s3_endpoint_url = "http://test"
-                mock_settings.s3_access_key = "test"
-                mock_settings.s3_secret_key = "test"
-                mock_settings.s3_region = "us-east-1"
-                mock_settings.s3_bucket = "test-bucket"
-
-                data, mime = download_photo("key.jpg")
-
-        assert data == b"imagedata"
+        body, mime = download_photo(key)
+        assert body == b"image content"
         assert mime == "image/png"
 
-    def test_delete_photo_calls_delete_object(self):
-        mock_client = MagicMock()
-        with patch("app.services.storage.get_s3_client", return_value=mock_client):
-            with patch("app.services.storage.settings") as mock_settings:
-                mock_settings.s3_endpoint_url = "http://test"
-                mock_settings.s3_access_key = "test"
-                mock_settings.s3_secret_key = "test"
-                mock_settings.s3_region = "us-east-1"
-                mock_settings.s3_bucket = "test-bucket"
+    def test_delete_photo_removes_file(self, tmp_storage_dir):
+        key = "test_delete.jpg"
+        path = os.path.join(tmp_storage_dir, key)
+        with open(path, "wb") as f:
+            f.write(b"remove me")
 
-                delete_photo("key.jpg")
+        delete_photo(key)
+        assert not os.path.exists(path)
 
-        mock_client.delete_object.assert_called_once_with(
-            Bucket="test-bucket",
-            Key="key.jpg",
-        )
+    def test_delete_photo_missing_file_no_error(self, tmp_storage_dir):
+        delete_photo("does_not_exist.jpg")
+
+    def test_mime_guessing(self, tmp_storage_dir):
+        for ext, expected_mime in [
+            (".jpg", "image/jpeg"),
+            (".jpeg", "image/jpeg"),
+            (".png", "image/png"),
+            (".gif", "image/gif"),
+            (".webp", "image/webp"),
+            (".svg", "image/svg+xml"),
+            (".xyz", "application/octet-stream"),
+        ]:
+            key = f"test{ext}"
+            upload_photo(key, b"data", "application/octet-stream")
+            _, mime = download_photo(key)
+            assert mime == expected_mime, f"Expected {expected_mime} for {ext}, got {mime}"
 
 
-class TestPhotoCascadeWithS3:
+class TestPhotoCascadeWithFS:
     def test_delete_opl_cascades_photos(self, client, sample_image_bytes, db_session):
         from app.models.opl import Photo
         create_resp = client.post("/api/opls/", json={
-            "title": "Cascade S3",
+            "title": "Cascade FS",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         opl_id = create_resp.json()["id"]
@@ -238,10 +228,9 @@ class TestPhotoCascadeWithS3:
         remaining = db_session.query(Photo).filter(Photo.step_id == step_id).count()
         assert remaining == 0
 
-    def test_multiple_photos_s3_workflow(self, client, sample_image_bytes):
-        """Full S3-like workflow: create, upload multiple, replace one, delete one, verify."""
+    def test_multiple_photos_fs_workflow(self, client, sample_image_bytes):
         create_resp = client.post("/api/opls/", json={
-            "title": "Multi S3",
+            "title": "Multi FS",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         opl_id = create_resp.json()["id"]
@@ -260,7 +249,6 @@ class TestPhotoCascadeWithS3:
         detail = client.get(f"/api/opls/{opl_id}").json()
         assert len(detail["steps"][0]["photos"]) == 3
 
-        # Replace middle photo
         from PIL import Image
         buf = BytesIO()
         Image.new("RGB", (100, 100), color="green").save(buf, format="JPEG")
@@ -273,11 +261,9 @@ class TestPhotoCascadeWithS3:
             )
         assert resp.status_code == 200
 
-        # Verify replacement
         get_resp = client.get(f"/api/opls/{opl_id}/photos/{uploaded_ids[1]}")
         assert get_resp.content == new_bytes
 
-        # Delete last photo
         resp = client.delete(f"/api/opls/steps/{step_id}/photos/{uploaded_ids[2]}")
         assert resp.status_code == 200
 

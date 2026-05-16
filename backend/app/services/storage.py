@@ -1,49 +1,56 @@
 from __future__ import annotations
 
+import os
 import io
 from typing import Tuple
-
-import boto3
-from botocore.config import Config
 
 from app.core.config import settings
 
 
-def get_s3_client():
-    return boto3.client(
-        "s3",
-        endpoint_url=settings.s3_endpoint_url,
-        aws_access_key_id=settings.s3_access_key,
-        aws_secret_access_key=settings.s3_secret_key,
-        region_name=settings.s3_region,
-        config=Config(signature_version="s3v4", retries={"max_attempts": 2}),
-    )
+_STORAGE_DIR = settings.photo_storage_dir
+
+
+def _ensure_dir():
+    os.makedirs(_STORAGE_DIR, exist_ok=True)
 
 
 def upload_photo(key: str, data: bytes, mime_type: str) -> str:
-    client = get_s3_client()
-    client.put_object(
-        Bucket=settings.s3_bucket,
-        Key=key,
-        Body=data,
-        ContentType=mime_type,
-    )
+    _ensure_dir()
+    path = os.path.join(_STORAGE_DIR, key)
+    with open(path, "wb") as f:
+        f.write(data)
     return key
 
 
 def download_photo(key: str) -> Tuple[bytes, str]:
-    client = get_s3_client()
-    resp = client.get_object(Bucket=settings.s3_bucket, Key=key)
-    body = resp["Body"].read()
-    mime_type = resp.get("ContentType", "image/jpeg")
-    return body, mime_type
+    path = os.path.join(_STORAGE_DIR, key)
+    mime_type = _guess_mime(path)
+    with open(path, "rb") as f:
+        return f.read(), mime_type
 
 
 def delete_photo(key: str) -> None:
-    client = get_s3_client()
-    client.delete_object(Bucket=settings.s3_bucket, Key=key)
+    path = os.path.join(_STORAGE_DIR, key)
+    if os.path.exists(path):
+        os.remove(path)
 
 
 def download_photo_to_bytesio(key: str) -> io.BytesIO:
     data, _ = download_photo(key)
     return io.BytesIO(data)
+
+
+def _guess_mime(path: str) -> str:
+    ext = os.path.splitext(path)[1].lower()
+    map_ = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".gif": "image/gif",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+        ".tif": "image/tiff",
+        ".tiff": "image/tiff",
+        ".svg": "image/svg+xml",
+    }
+    return map_.get(ext, "application/octet-stream")

@@ -698,7 +698,15 @@ export default function OplDetail() {
       {/* Description */}
       {opl.description && (
         <Paper sx={{ p: { xs: 1.5, sm: 2 }, mb: { xs: 1.5, sm: 2.5 }, bgcolor: '#f9fbe7', borderRadius: 2 }}>
-          <Typography variant="body2">{opl.description}</Typography>
+          {opl.description_html ? (
+            <div
+              className="markdown-content"
+              style={{ fontFamily: 'inherit', lineHeight: 1.6 }}
+              dangerouslySetInnerHTML={{ __html: opl.description_html }}
+            />
+          ) : (
+            <Typography variant="body2">{opl.description}</Typography>
+          )}
         </Paper>
       )}
 

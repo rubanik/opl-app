@@ -79,7 +79,7 @@ def _num_circle(number):
     t = Table([[num_p]], colWidths=[sz], rowHeights=[sz])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY),
-        ('ROUNDEDCORNERS', 4),
+        ('ROUNDEDCORNERS', (4, 4, 4, 4)),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
@@ -185,7 +185,7 @@ def build_pdf(opl, steps, tags):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10*mm),
         ('LEFTPADDING', (0, 0), (-1, -1), 8*mm),
         ('RIGHTPADDING', (0, 0), (-1, -1), 8*mm),
-        ('ROUNDEDCORNERS', 0),
+        ('ROUNDEDCORNERS', (0, 0, 0, 0)),
     ]))
     story.append(header)
     story.append(Spacer(1, 8*mm))

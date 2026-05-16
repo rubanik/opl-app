@@ -66,7 +66,11 @@ def list_opls(
             if opl_row and opl_row.created_by:
                 author = db.get(User, opl_row.created_by)
                 if author:
-                    author_map[opl_id] = AuthorOut(username=author.username)
+                    author_map[opl_id] = AuthorOut(
+                        username=author.username,
+                        surname=author.surname,
+                        given_name=author.given_name
+                    )
     result = []
     for r in rows:
         result.append(OplListOut(

@@ -79,13 +79,38 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 logger.info(f"LDAP user-bind failed for {username}")
                 user_conn.unbind()
                 return None
+
+            # Fetch user attributes after successful bind
+            try:
+                user_conn.search(
+                    search_base=user_dn,
+                    search_filter="(objectClass=person)",
+                    search_scope="BASE",
+                    attributes=["sn", "givenName", "title", "mail", "department", "extensionAttribute9"],
+                )
+                attrs = {}
+                if user_conn.entries:
+                    entry = user_conn.entries[0]
+                    for attr in ["sn", "givenName", "title", "mail", "department", "extensionAttribute9"]:
+                        if hasattr(entry, attr) and getattr(entry, attr):
+                            val = str(getattr(entry, attr))
+                            if val.lower() not in ("none", "null", ""):
+                                attrs[attr] = val
+            except Exception as e:
+                logger.warning(f"LDAP attribute fetch failed for {username}: {e}")
+
             user_conn.unbind()
-            logger.info(f"LDAP user-bind OK for {username}")
+            logger.info(f"LDAP user-bind OK for {username}, attrs: {attrs}")
             return {
                 "username": username,
-                "email": None,
-                "display_name": username,
+                "email": attrs.get("mail"),
+                "display_name": attrs.get("givenName", username),
                 "ldap_dn": user_dn,
+                "surname": attrs.get("sn"),
+                "given_name": attrs.get("givenName"),
+                "title": attrs.get("title"),
+                "department": attrs.get("department"),
+                "employee_id": attrs.get("extensionAttribute9"),
             }
 
         # --- Mode 2: Service-account bind + search (legacy) ---

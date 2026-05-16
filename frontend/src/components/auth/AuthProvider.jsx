@@ -77,7 +77,14 @@ export function AuthProvider({ children }) {
     setAuthOpen(false);
     setRequireAuth(false);
     if (!wasRequired) {
-      setWelcomeToast({ open: true, username: data.user.username });
+      setWelcomeToast({
+        open: true,
+        username: data.user.username,
+        given_name: data.user.given_name || '',
+        surname: data.user.surname || '',
+        employee_id: data.user.employee_id || '',
+        department: data.user.department || '',
+      });
     }
   };
 
@@ -247,14 +254,30 @@ export function HeaderUserArea() {
     );
   }
 
+  const isLdap = !user.is_local;
+  const displayTitle = isLdap && user.title ? user.title : '';
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <Avatar sx={{ width: 28, height: 28, bgcolor: 'rgba(255,255,255,0.2)' }}>
         <AccountCircleIcon fontSize="small" />
       </Avatar>
-      <Typography variant="body2" sx={{ color: 'white', fontWeight: 500, display: { xs: 'none', sm: 'block' } }}>
-        {user.username}
-      </Typography>
+      {isLdap ? (
+        <Box sx={{ display: { xs: 'none', sm: 'flex' }, flexDirection: 'column' }}>
+          <Typography variant="body2" sx={{ color: 'white', fontWeight: 500, lineHeight: 1.2 }}>
+            {user.given_name || user.username} {user.surname || ''}
+          </Typography>
+          {displayTitle && (
+            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+              {displayTitle}
+            </Typography>
+          )}
+        </Box>
+      ) : (
+        <Typography variant="body2" sx={{ color: 'white', fontWeight: 500, display: { xs: 'none', sm: 'block' } }}>
+          {user.username}
+        </Typography>
+      )}
       <IconButton size="small" sx={{ color: 'white' }} onClick={logout}>
         <LogoutIcon fontSize="small" />
       </IconButton>

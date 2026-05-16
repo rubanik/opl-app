@@ -39,6 +39,19 @@ def init_db():
             conn.commit()
     except Exception:
         pass
+    for col, typ in [
+        ("surname", "VARCHAR(100)"),
+        ("given_name", "VARCHAR(100)"),
+        ("title", "VARCHAR(200)"),
+        ("department", "VARCHAR(200)"),
+        ("employee_id", "VARCHAR(50)"),
+    ]:
+        try:
+            with eng.connect() as conn:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col} {typ}"))
+                conn.commit()
+        except Exception:
+            pass
     try:
         from app.db.migrate_title import upgrade as migrate_title
         migrate_title()

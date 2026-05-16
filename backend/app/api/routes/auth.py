@@ -50,12 +50,29 @@ def login(
                     email=ldap_info.get("email"),
                     is_local=False,
                     ldap_dn=ldap_info.get("ldap_dn"),
+                    surname=ldap_info.get("surname"),
+                    given_name=ldap_info.get("given_name"),
+                    title=ldap_info.get("title"),
+                    department=ldap_info.get("department"),
+                    employee_id=ldap_info.get("employee_id"),
                     created_at=datetime.now(timezone.utc),
                     last_login=datetime.now(timezone.utc),
                 )
                 db.add(user)
             else:
                 user.last_login = datetime.now(timezone.utc)
+                if ldap_info.get("email"):
+                    user.email = ldap_info["email"]
+                if ldap_info.get("surname"):
+                    user.surname = ldap_info["surname"]
+                if ldap_info.get("given_name"):
+                    user.given_name = ldap_info["given_name"]
+                if ldap_info.get("title"):
+                    user.title = ldap_info["title"]
+                if ldap_info.get("department"):
+                    user.department = ldap_info["department"]
+                if ldap_info.get("employee_id"):
+                    user.employee_id = ldap_info["employee_id"]
             db.commit()
             db.refresh(user)
         else:
@@ -157,6 +174,11 @@ def me(user: User = Depends(get_current_user)):
         "username": user.username,
         "email": user.email,
         "is_local": user.is_local,
+        "surname": user.surname,
+        "given_name": user.given_name,
+        "title": user.title,
+        "department": user.department,
+        "employee_id": user.employee_id,
         "created_at": user.created_at,
         "last_login": user.last_login,
     }

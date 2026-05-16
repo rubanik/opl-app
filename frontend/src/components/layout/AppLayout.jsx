@@ -97,7 +97,12 @@ export default function AppLayout({ children, welcomeToast, setWelcomeToast }) {
         sx={{ zIndex: 9999 }}
       >
         <Alert severity="success" onClose={() => setWelcomeToast({ ...welcomeToast, open: false })} elevation={3}>
-          Привет, {welcomeToast.username}! Вы успешно авторизовались через корпоративный портал!
+          {(() => {
+            const parts = [`Добро пожаловать, ${welcomeToast.given_name} ${welcomeToast.surname}!`];
+            if (welcomeToast.employee_id) parts.push(`Табельный: ${welcomeToast.employee_id}`);
+            if (welcomeToast.department) parts.push(`Отдел: ${welcomeToast.department}`);
+            return parts.join(', ');
+          })()}
         </Alert>
       </Snackbar>
     </Box>

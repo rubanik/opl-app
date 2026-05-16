@@ -18,6 +18,11 @@ class User(Base):
     is_local = Column(Boolean, default=True, nullable=False)
     password_hash = Column(String(255), nullable=True)
     ldap_dn = Column(String(500), nullable=True)
+    surname = Column(String(100), nullable=True)
+    given_name = Column(String(100), nullable=True)
+    title = Column(String(200), nullable=True)
+    department = Column(String(200), nullable=True)
+    employee_id = Column(String(50), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
 

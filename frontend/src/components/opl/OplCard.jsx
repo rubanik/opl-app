@@ -93,10 +93,20 @@ export default function OplCard({ opl, onDelete, user }) {
               {opl.author && (
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 0.5 }}>
                   <Avatar sx={{ width: 20, height: 20, fontSize: '0.6rem', bgcolor: 'grey.300', color: 'grey.700' }}>
-                    {opl.author.username.slice(0, 2).toUpperCase()}
+                    {(() => {
+                      const sn = (opl.author.surname || '').slice(0, 1).toUpperCase();
+                      const gn = (opl.author.given_name || '').slice(0, 1).toUpperCase();
+                      return (sn + gn) || opl.author.username.slice(0, 2).toUpperCase();
+                    })()}
                   </Avatar>
                   <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.65rem' }}>
-                    {opl.author.username}
+                    {(() => {
+                      const sn = opl.author.surname || '';
+                      const gn = opl.author.given_name || '';
+                      if (sn && gn) return `${sn} ${gn[0]}.`;
+                      if (sn) return sn;
+                      return opl.author.username;
+                    })()}
                   </Typography>
                 </Box>
               )}

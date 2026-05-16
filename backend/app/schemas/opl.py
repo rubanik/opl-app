@@ -58,6 +58,8 @@ class OplTagOut(BaseModel):
 
 class AuthorOut(BaseModel):
     username: str
+    surname: str | None = None
+    given_name: str | None = None
 
     model_config = {"from_attributes": True}
 

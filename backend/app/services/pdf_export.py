@@ -15,8 +15,6 @@ from reportlab.pdfbase.ttfonts import TTFont
 
 pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
 pdfmetrics.registerFont(TTFont('DejaVu-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
-pdfmetrics.registerFont(TTFont('DejaVu-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
-pdfmetrics.registerFont(TTFont('DejaVu-BoldOblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf'))
 
 _BOLD = 'DejaVu-Bold'
 _REG = 'DejaVu'

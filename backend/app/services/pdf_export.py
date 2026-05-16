@@ -7,7 +7,7 @@ import math
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable, Image as RLImage, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable, Image as RLImage, PageBreak, KeepTogether
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
@@ -25,14 +25,13 @@ _TEXT_MID = colors.HexColor('#616161')
 _TEXT_LIGHT = colors.HexColor('#9e9e9e')
 _BORDER = colors.HexColor('#e0e0e0')
 
-# Landscape A4
 PAGE_W, PAGE_H = A4[1], A4[0]
 MARGIN_X = 20*mm
 MARGIN_Y = 18*mm
 CONTENT_W = PAGE_W - MARGIN_X * 2
 CONTENT_H = PAGE_H - MARGIN_Y * 2
 
-NUM_CIRCLE = 26*mm
+NUM_CIRCLE = 30*mm
 
 _styles = {
     'Title': ParagraphStyle('t', fontName=_BOLD, fontSize=24, leading=30,
@@ -45,11 +44,9 @@ _styles = {
                             textColor=_TEXT_LIGHT, spaceAfter=2),
     'Footer': ParagraphStyle('f', fontName=_REG, fontSize=8, leading=10,
                              textColor=_TEXT_LIGHT, alignment=TA_CENTER),
-    'NumText': ParagraphStyle('nt', fontName=_BOLD, fontSize=16, leading=22,
+    'NumText': ParagraphStyle('nt', fontName=_BOLD, fontSize=18, leading=24,
                               textColor=colors.white, alignment=TA_CENTER,
                               spaceBefore=0, spaceAfter=0),
-    'Desc': ParagraphStyle('d', fontName=_REG, fontSize=12, leading=16,
-                           textColor=colors.HexColor('#90caf9'), spaceAfter=0),
     'StepNumPage': ParagraphStyle('snp', fontName=_BOLD, fontSize=10, leading=13,
                                   textColor=_TEXT_LIGHT, alignment=TA_CENTER, spaceAfter=0),
 }
@@ -120,7 +117,6 @@ def clean_html(text):
 
 
 def _build_photos_grid(photos, available_w):
-    """All photos in a responsive grid."""
     if not photos:
         return []
     result = []
@@ -159,7 +155,6 @@ def _build_photos_grid(photos, available_w):
 
 def _build_header_page(opl, tags, steps_count):
     story = []
-    # Colored header bar
     header = Table(
         [[Paragraph(
             (f"<font name='{_BOLD}' size='24' color='#ffffff'>{opl['title']}</font>" +
@@ -211,35 +206,52 @@ def _build_header_page(opl, tags, steps_count):
 
 def _build_step_page(st, total_steps, step_idx):
     story = []
-    # Step number badge + title at top
     circle = _num_circle(st['step_number'])
-    top_parts = []
+    step_content_w = CONTENT_W - NUM_CIRCLE - 4*mm
 
+    # Collect all right-side content into one list
+    right = []
     if st.get('title'):
-        top_parts.append(Paragraph(st['title'], _styles['Subtitle']))
+        right.append(Paragraph(st['title'], _styles['Subtitle']))
 
     dur_text = f"&nbsp;&nbsp;⏱ {fmt_dur(st.get('duration_sec', 0))}"
-    top_parts.append(Paragraph(dur_text, _styles['Small']))
+    right.append(Paragraph(dur_text, _styles['Small']))
+    right.append(Spacer(1, 3*mm))
+    right.append(HRFlowable(width="100%", thickness=1, color=_BORDER, spaceAfter=2))
+    right.append(Spacer(1, 3*mm))
 
-    title_cell = top_parts[0] if top_parts else Paragraph(' ', _styles['Body'])
-    top_table = Table(
-        [[circle, title_cell]],
-        colWidths=[NUM_CIRCLE, CONTENT_W - NUM_CIRCLE - 4*mm],
+    txt = clean_html(st.get('description_html') or st.get('description') or '')
+    if txt:
+        right.append(Paragraph(txt, _styles['Body']))
+
+    photos = st.get('photos', [])
+    if photos:
+        right.append(Spacer(1, 4*mm))
+        photo_items = _build_photos_grid(photos, step_content_w)
+        for pi in photo_items:
+            right.append(pi)
+
+    # Single 2-column table: circle | all content
+    content_cell = right[0] if right else Paragraph(' ', _styles['Body'])
+    step_table = Table(
+        [[circle, content_cell]],
+        colWidths=[NUM_CIRCLE, step_content_w],
     )
-    top_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (0, -1), 'TOP'),
+    step_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),
         ('RIGHTPADDING', (0, 0), (-1, -1), 0),
     ]))
-    story.append(top_table)
+    story.append(step_table)
 
-    for p in top_parts[1:]:
+    # Remaining content rows aligned under content column
+    for p in right[1:]:
         spacer = Paragraph(' ', _styles['Body'])
         cont_table = Table(
             [[spacer, p]],
-            colWidths=[NUM_CIRCLE, CONTENT_W - NUM_CIRCLE - 4*mm],
+            colWidths=[NUM_CIRCLE, step_content_w],
         )
         cont_table.setStyle(TableStyle([
             ('TOPPADDING', (0, 0), (-1, -1), 0),
@@ -249,37 +261,8 @@ def _build_step_page(st, total_steps, step_idx):
         ]))
         story.append(cont_table)
 
-    story.append(Spacer(1, 3*mm))
-    story.append(HRFlowable(width="100%", thickness=1, color=_BORDER, spaceAfter=2))
-    story.append(Spacer(1, 3*mm))
-
-    # Description text
-    txt = clean_html(st.get('description_html') or st.get('description') or '')
-    if txt:
-        story.append(Paragraph(txt, _styles['Body']))
-
-    # All photos in grid
-    photos = st.get('photos', [])
-    if photos:
-        story.append(Spacer(1, 4*mm))
-        photo_wide = CONTENT_W - NUM_CIRCLE - 4*mm
-        photo_items = _build_photos_grid(photos, photo_wide)
-        for pi in photo_items:
-            spacer = Paragraph(' ', _styles['Body'])
-            ph_table = Table(
-                [[spacer, pi]],
-                colWidths=[NUM_CIRCLE, photo_wide],
-            )
-            ph_table.setStyle(TableStyle([
-                ('TOPPADDING', (0, 0), (-1, -1), 0),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-                ('LEFTPADDING', (0, 0), (-1, -1), 0),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ]))
-            story.append(ph_table)
-
-    # Step counter at bottom
-    story.append(Spacer(1, 10*mm))
+    # Step counter
+    story.append(Spacer(1, 8*mm))
     story.append(HRFlowable(width="40%", thickness=0.5, color=_BORDER))
     story.append(Spacer(1, 2*mm))
     story.append(Paragraph(
@@ -300,17 +283,13 @@ def build_pdf(opl, steps, tags):
     )
     story = []
 
-    # Cover / header page
     story.extend(_build_header_page(opl, tags, len(steps)))
     story.append(PageBreak())
 
-    # One step per page
     for i, st in enumerate(steps):
         story.extend(_build_step_page(st, len(steps), i + 1))
         if i < len(steps) - 1:
             story.append(PageBreak())
-
-    # Footer on last page is already in the last step page
 
     doc.build(story)
     buf.seek(0)

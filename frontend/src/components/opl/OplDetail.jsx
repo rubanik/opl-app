@@ -505,6 +505,15 @@ export default function OplDetail() {
             {snack.msg}
           </Alert>
         </Snackbar>
+
+        {/* Confirm delete photo */}
+        <ConfirmDialog
+          open={confirm.open}
+          title="Удалить фото?"
+          message="Это действие нельзя отменить."
+          onConfirm={confirmDeletePhoto}
+          onCancel={() => setConfirm({ open: false, stepId: null, photoId: null })}
+        />
       </Box>
     );
   }

@@ -74,6 +74,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 user=user_dn,
                 password=password,
                 authentication="SIMPLE",
+                auto_bind=False,
             )
             if not user_conn.bind():
                 logger.info(f"LDAP user-bind failed for {username}")
@@ -81,6 +82,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 return None
 
             # Fetch user attributes after successful bind
+            attrs = {}
             try:
                 user_conn.search(
                     search_base=user_dn,
@@ -88,16 +90,14 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                     search_scope="BASE",
                     attributes=["sn", "givenName", "title", "mail", "department", "extensionAttribute9"],
                 )
-                attrs = {}
                 if user_conn.entries:
                     entry = user_conn.entries[0]
                     for attr in ["sn", "givenName", "title", "mail", "department", "extensionAttribute9"]:
-                        if hasattr(entry, attr) and getattr(entry, attr):
-                            val = str(getattr(entry, attr))
-                            if val.lower() not in ("none", "null", ""):
-                                attrs[attr] = val
+                        val = entry[attr].value if attr in entry else None
+                        if val:
+                            attrs[attr] = str(val)
             except Exception as e:
-                logger.warning(f"LDAP attribute fetch failed for {username}: {e}")
+                logger.warning(f"LDAP attribute fetch failed for {username}: {type(e).__name__}: {e}")
 
             user_conn.unbind()
             logger.info(f"LDAP user-bind OK for {username}, attrs: {attrs}")

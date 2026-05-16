@@ -21,7 +21,6 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
-import LoginIcon from '@mui/icons-material/Login';
 import TagIcon from '@mui/icons-material/Tag';
 import DescriptionIcon from '@mui/icons-material/Description';
 
@@ -230,15 +229,15 @@ export default function OplList() {
               </>
             )}
             {!user && (
-              <Tooltip title="Войдите, чтобы создавать и управлять инструкциями" arrow>
+              <Tooltip title="Войдите в шапке, чтобы создавать инструкции" arrow>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   size="small"
-                  startIcon={<LoginIcon />}
+                  startIcon={<AddIcon />}
                   onClick={() => checkAuth(() => setNewOpen(true))}
                   sx={{ borderRadius: 2 }}
                 >
-                  Войти
+                  Новая
                 </Button>
               </Tooltip>
             )}

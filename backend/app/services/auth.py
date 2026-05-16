@@ -74,7 +74,6 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 user=user_dn,
                 password=password,
                 authentication="SIMPLE",
-                read_timeout=10,
             )
             if not user_conn.bind():
                 logger.info(f"LDAP user-bind failed for {username}")
@@ -100,7 +99,6 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             password=settings.ldap_bind_password,
             authentication="SIMPLE",
             auto_bind="READ_ONLY",
-            read_timeout=10,
         )
         logger.info(f"LDAP service-bind OK, searching user={username}")
         search_base = settings.ldap_search_base or settings.ldap_base_dn
@@ -123,7 +121,6 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             user=user_dn,
             password=password,
             authentication="SIMPLE",
-            read_timeout=10,
         )
         if not user_conn.bind():
             logger.info(f"LDAP user-bind failed for {user_dn}")

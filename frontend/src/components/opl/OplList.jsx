@@ -41,6 +41,7 @@ import EmptyState from '../common/EmptyState';
 import { ListSkeleton } from '../common/LoadingSkeleton';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../../hooks/useApi';
+import { useCollectionsContext } from '../../contexts/CollectionsContext';
 
 const API = '/api';
 const APP_URL = window.location.origin;
@@ -67,6 +68,7 @@ export default function OplList() {
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
+  const { activeCollectionId } = useCollectionsContext();
   const isMobile = useMediaQuery('(max-width:600px)');
 
   // Read query param on mount
@@ -100,6 +102,9 @@ export default function OplList() {
     if (selectedTagIds.length > 0) {
       selectedTagIds.forEach(tid => params.append('tag_ids', tid));
     }
+    if (activeCollectionId) {
+      params.set('collection_id', activeCollectionId);
+    }
     params.set('skip', String((currentPage - 1) * ITEMS_PER_PAGE));
     params.set('limit', String(ITEMS_PER_PAGE));
     const res = await fetch(`${API}/opls/?${params.toString()}`);
@@ -115,15 +120,17 @@ export default function OplList() {
     }
     setOpls(items);
     setLoading(false);
-  }, [selectedTagIds, sortBy, currentPage]);
+  }, [selectedTagIds, sortBy, currentPage, activeCollectionId]);
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
   useEffect(() => { fetchOpls(); }, [fetchOpls]);
   useEffect(() => { setCurrentPage(1); }, [selectedTagIds, sortBy, searchQuery]);
   useEffect(() => {
-    fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
-  }, []);
+    if (activeCollectionId) {
+      fetch(`${API}/collections/${activeCollectionId}/tags`).then(r => r.json()).then(setAllTags);
+    }
+  }, [activeCollectionId]);
 
   // Share link & description
   const hasActiveFilters = selectedTagIds.length > 0 || debouncedQuery;
@@ -479,7 +486,9 @@ export default function OplList() {
         open={tagManagerOpen}
         onClose={() => setTagManagerOpen(false)}
         onUpdate={() => {
-          fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
+          if (activeCollectionId) {
+            fetch(`${API}/collections/${activeCollectionId}/tags`).then(r => r.json()).then(setAllTags);
+          }
           fetchOpls();
         }}
       />

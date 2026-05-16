@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -21,6 +21,7 @@ import {
   useMediaQuery,
   InputLabel,
   FormControl,
+  MenuItem,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -28,6 +29,7 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import CodeIcon from '@mui/icons-material/Code';
 import TimerIcon from '@mui/icons-material/Timer';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import FolderIcon from '@mui/icons-material/Folder';
 
 const API = '/api';
 
@@ -39,7 +41,19 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
   ]);
   const [selectedTags, setSelectedTags] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [collections, setCollections] = useState([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState(null);
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  useEffect(() => {
+    if (!open) return;
+    fetch(`${API}/collections/`).then(r => r.json()).then(data => {
+      const items = data.items || [];
+      setCollections(items);
+      const def = items.find(c => c.name === 'Общие');
+      setSelectedCollectionId(def?.id || items[0]?.id);
+    });
+  }, [open]);
 
   const updateStep = (idx, field, value) => {
     const next = [...steps];
@@ -107,6 +121,7 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
     const payload = {
       title,
       description,
+      collection_id: selectedCollectionId,
       steps: steps.map((s) => ({
         step_number: s.step_number,
         title: s.title,
@@ -185,6 +200,25 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
               }}
             />
           </Tooltip>
+          <FormControl fullWidth size="small" sx={{ borderRadius: 1 }}>
+            <InputLabel shrink>Коллекция</InputLabel>
+            <TextField
+              select
+              value={selectedCollectionId || ''}
+              onChange={(e) => setSelectedCollectionId(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <FolderIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+                  </InputAdornment>
+                ),
+              }}
+            >
+              {collections.map(c => (
+                <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+              ))}
+            </TextField>
+          </FormControl>
           {allTags.length > 0 && (
             isMobile ? (
               <Box>

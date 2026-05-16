@@ -4,6 +4,7 @@ import { Box, CircularProgress } from '@mui/material';
 import { ThemeProvider, theme } from './components/layout/AppLayout';
 import AppLayout from './components/layout/AppLayout';
 import { AuthProvider, AuthDialog, useAuth } from './components/auth/AuthProvider';
+import { CollectionsProvider } from './contexts/CollectionsContext';
 import OplList from './components/opl/OplList';
 import OplDetail from './components/opl/OplDetail';
 
@@ -40,7 +41,9 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider theme={theme}>
         <AuthProvider>
-          <AppInner />
+          <CollectionsProvider>
+            <AppInner />
+          </CollectionsProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

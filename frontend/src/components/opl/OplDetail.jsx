@@ -104,7 +104,7 @@ export default function OplDetail() {
         setEditDescription(opl.description || '');
         setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
         setEditSelectedTagIds(opl.tags.map(t => t.id));
-        fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
+        fetch(`${API}/collections/${opl.collection?.id}/tags`).then(r => r.json()).then(setEditTags);
         setEditing(true);
       });
       return;
@@ -113,7 +113,7 @@ export default function OplDetail() {
     setEditDescription(opl.description || '');
     setEditSteps(opl.steps.map(s => ({ ...s, photos: s.photos || [] })));
     setEditSelectedTagIds(opl.tags.map(t => t.id));
-    fetch(`${API}/opls/tags`).then(r => r.json()).then(setEditTags);
+    fetch(`${API}/collections/${opl.collection?.id}/tags`).then(r => r.json()).then(setEditTags);
     setEditing(true);
   };
 
@@ -618,6 +618,9 @@ export default function OplDetail() {
           <MuiLink component={Link} to="/" underline="hover" sx={{ color: 'text.secondary' }}>
             OPL
           </MuiLink>
+          {opl.collection && (
+            <Typography variant="body2" color="text.secondary">{opl.collection.name}</Typography>
+          )}
           <Typography variant="body2" color="text.primary">{opl.title}</Typography>
         </Breadcrumbs>
       </Box>

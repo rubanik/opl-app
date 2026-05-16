@@ -15,6 +15,7 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 
 import ConfirmDialog from '../common/ConfirmDialog';
+import { useCollectionsContext } from '../../contexts/CollectionsContext';
 
 const API = '/api';
 
@@ -23,23 +24,26 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#1976d2');
   const [confirm, setConfirm] = useState({ open: false, tagId: null });
+  const { activeCollectionId } = useCollectionsContext();
+
+  const tagsUrl = activeCollectionId ? `${API}/collections/${activeCollectionId}/tags` : `${API}/opls/tags`;
 
   useEffect(() => {
     if (open) {
-      fetch(`${API}/opls/tags`).then(r => r.json()).then(setTags);
+      fetch(tagsUrl).then(r => r.json()).then(setTags);
     }
-  }, [open]);
+  }, [open, tagsUrl]);
 
   const create = async () => {
     if (!newName.trim()) return;
-    const res = await fetch(`${API}/opls/tags`, {
+    const res = await fetch(tagsUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: newName.trim(), color: newColor }),
     });
     if (res.ok) {
       setNewName('');
-      fetch(`${API}/opls/tags`).then(r => r.json()).then(setTags);
+      fetch(tagsUrl).then(r => r.json()).then(setTags);
       onUpdate();
     }
   };
@@ -50,8 +54,11 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
 
   const confirmRemove = async () => {
     if (!confirm.tagId) return;
-    await fetch(`${API}/opls/tags/${confirm.tagId}`, { method: 'DELETE' });
-    fetch(`${API}/opls/tags`).then(r => r.json()).then(setTags);
+    const delUrl = activeCollectionId
+      ? `${API}/collections/${activeCollectionId}/tags/${confirm.tagId}`
+      : `${API}/opls/tags/${confirm.tagId}`;
+    await fetch(delUrl, { method: 'DELETE' });
+    fetch(tagsUrl).then(r => r.json()).then(setTags);
     onUpdate();
     setConfirm({ open: false, tagId: null });
   };

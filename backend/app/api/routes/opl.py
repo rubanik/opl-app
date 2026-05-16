@@ -292,7 +292,7 @@ def list_tags(
     else:
         # Backward compat: tags without collection
         stmt = stmt.where(OplTag.collection_id.is_(None))
-    return stmt.scalars().all()
+    return db.execute(stmt).scalars().all()
 
 
 @router.post("/tags", response_model=OplTagOut, status_code=201)

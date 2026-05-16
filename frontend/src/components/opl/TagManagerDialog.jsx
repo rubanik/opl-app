@@ -15,7 +15,6 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete';
 
 import ConfirmDialog from '../common/ConfirmDialog';
-import { useCollectionsContext } from '../../contexts/CollectionsContext';
 
 const API = '/api';
 
@@ -24,9 +23,8 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#1976d2');
   const [confirm, setConfirm] = useState({ open: false, tagId: null });
-  const { activeCollectionId } = useCollectionsContext();
 
-  const tagsUrl = activeCollectionId ? `${API}/collections/${activeCollectionId}/tags` : `${API}/opls/tags`;
+  const tagsUrl = `${API}/opls/tags`;
 
   useEffect(() => {
     if (open) {
@@ -54,10 +52,7 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
 
   const confirmRemove = async () => {
     if (!confirm.tagId) return;
-    const delUrl = activeCollectionId
-      ? `${API}/collections/${activeCollectionId}/tags/${confirm.tagId}`
-      : `${API}/opls/tags/${confirm.tagId}`;
-    await fetch(delUrl, { method: 'DELETE' });
+    await fetch(`${API}/opls/tags/${confirm.tagId}`, { method: 'DELETE' });
     fetch(tagsUrl).then(r => r.json()).then(setTags);
     onUpdate();
     setConfirm({ open: false, tagId: null });

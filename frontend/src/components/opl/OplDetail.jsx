@@ -43,6 +43,7 @@ import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CodeIcon from '@mui/icons-material/Code';
 import DescriptionIcon from '@mui/icons-material/Description';
+import TagIcon from '@mui/icons-material/Tag';
 import { QRCodeSVG } from 'qrcode.react';
 
 import PhotoCarousel from './PhotoCarousel';
@@ -130,6 +131,11 @@ export default function OplDetail() {
           }),
         });
       }
+      await fetch(`${API}/opls/${id}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tag_ids: editSelectedTagIds }),
+      });
       const res = await fetch(`${API}/opls/${id}`);
       const data = await res.json();
       setOpl(data);
@@ -317,6 +323,40 @@ export default function OplDetail() {
           onChange={(e) => setEditDescription(e.target.value)}
           sx={{ mb: { xs: 2, sm: 3 }, borderRadius: 2 }}
         />
+
+        {editTags.length > 0 && (
+          <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <TagIcon sx={{ fontSize: 18 }} />
+              Теги
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {editTags.map(tag => {
+                const active = editSelectedTagIds.includes(tag.id);
+                return (
+                  <Chip
+                    key={tag.id}
+                    label={tag.name}
+                    clickable
+                    onClick={() => setEditSelectedTagIds(prev =>
+                      active ? prev.filter(t => t !== tag.id) : [...prev, tag.id]
+                    )}
+                    sx={{
+                      bgcolor: active ? tag.color : 'transparent',
+                      color: active ? 'white' : tag.color,
+                      fontWeight: active ? 600 : 400,
+                      border: `1.5px solid ${tag.color}`,
+                      borderRadius: 2,
+                      transition: 'all 0.15s',
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+
+        <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
 
         <Stack spacing={{ xs: 1.5, sm: 2 }}>
           {editSteps.sort((a, b) => a.step_number - b.step_number).map((step, idx) => (

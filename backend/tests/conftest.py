@@ -1,6 +1,7 @@
 """Конфигурация для тестов: SQLite in-memory вместо PostgreSQL."""
 import os
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
+os.environ["TESTING"] = "1"
 
 import uuid
 from sqlalchemy import create_engine

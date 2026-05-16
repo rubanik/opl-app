@@ -26,6 +26,13 @@ class Settings(BaseSettings):
     jwt_access_minutes: int = 60
     jwt_refresh_minutes: int = 10080  # 7 days
 
+    # S3
+    s3_endpoint_url: str = ""
+    s3_bucket: str = "opl-photos"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    s3_region: str = "us-east-1"
+
     @classmethod
     def environment_variable_names(cls) -> dict[str, str]:
         return {
@@ -44,6 +51,11 @@ class Settings(BaseSettings):
             "jwt_algorithm": "JWT_ALGORITHM",
             "jwt_access_minutes": "JWT_ACCESS_MINUTES",
             "jwt_refresh_minutes": "JWT_REFRESH_MINUTES",
+            "s3_endpoint_url": "S3_ENDPOINT_URL",
+            "s3_bucket": "S3_BUCKET",
+            "s3_access_key": "S3_ACCESS_KEY",
+            "s3_secret_key": "S3_SECRET_KEY",
+            "s3_region": "S3_REGION",
         }
 
 

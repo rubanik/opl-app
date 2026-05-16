@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import uuid
+import os
 from io import BytesIO
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import Response
@@ -222,7 +224,19 @@ def replace_photo(
         raise HTTPException(404, "Шаг не найден")
     data = file.file.read()
     mime = file.content_type or "image/jpeg"
-    photo.data = data
+    ext = Path(file.filename).suffix if file.filename else ".jpg"
+    new_key = f"{uuid.uuid4()}{ext}"
+    if os.environ.get("TESTING"):
+        photo.data = data
+        photo.s3_key = None
+    else:
+        from app.services.storage import upload_photo as s3_upload
+        if photo.s3_key:
+            from app.services.storage import delete_photo as s3_delete
+            s3_delete(photo.s3_key)
+        s3_upload(new_key, data, mime)
+        photo.data = None
+        photo.s3_key = new_key
     photo.mime_type = mime
     db.commit()
     db.refresh(photo)
@@ -306,6 +320,9 @@ def delete_photo(step_id: uuid.UUID, photo_id: uuid.UUID, db: Session = Depends(
     photo = db.get(Photo, photo_id)
     if not photo or photo.step_id != step_id:
         raise HTTPException(404, "Фото не найдено")
+    if photo.s3_key and not os.environ.get("TESTING"):
+        from app.services.storage import delete_photo as s3_delete
+        s3_delete(photo.s3_key)
     db.delete(photo)
     db.commit()
     return {"ok": True}
@@ -319,7 +336,13 @@ def get_photo(opl_id: uuid.UUID, photo_id: uuid.UUID, db: Session = Depends(get_
     step = db.get(Step, photo.step_id)
     if not step or step.opl_id != opl_id:
         raise HTTPException(403, "Нет доступа")
-    return Response(content=photo.data, media_type=photo.mime_type)
+    if photo.s3_key and not os.environ.get("TESTING"):
+        from app.services.storage import download_photo as s3_download
+        data, mime = s3_download(photo.s3_key)
+    else:
+        data = photo.data
+        mime = photo.mime_type
+    return Response(content=data, media_type=mime)
 
 
 @router.get("/{opl_id}/qr")
@@ -370,8 +393,13 @@ def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
     for s in opl.steps:
         photo_data = []
         for p in (s.photos or []):
+            if p.s3_key and not os.environ.get("TESTING"):
+                from app.services.storage import download_photo as s3_download
+                pdata, _ = s3_download(p.s3_key)
+            else:
+                pdata = p.data
             photo_data.append({
-                'data_base64': base64.b64encode(p.data).decode('ascii'),
+                'data_base64': base64.b64encode(pdata).decode('ascii'),
                 'mime_type': p.mime_type,
             })
         steps_data.append({

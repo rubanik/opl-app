@@ -62,6 +62,11 @@ def init_db():
         migrate_indexes()
     except Exception:
         pass
+    try:
+        from app.db.migrate_photos_s3 import upgrade as migrate_photos_s3
+        migrate_photos_s3()
+    except Exception:
+        pass
 
 
 def create_app(init: bool = True) -> FastAPI:

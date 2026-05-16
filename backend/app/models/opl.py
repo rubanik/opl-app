@@ -73,7 +73,8 @@ class Photo(Base):
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     step_id = Column(UUID(), ForeignKey("steps.id", ondelete="CASCADE"), nullable=False)
     display_order = Column(Integer, nullable=False)
-    data = Column(LargeBinary, nullable=False)
+    data = Column(LargeBinary, nullable=True)
+    s3_key = Column(String(500), nullable=True)
     mime_type = Column(String(50), default="image/jpeg")
 
     step = relationship("Step", back_populates="photos")

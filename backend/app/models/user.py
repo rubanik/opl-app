@@ -27,3 +27,5 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
     opls = relationship("Opl", back_populates="author")
+    collections = relationship("UserCollectionLink", back_populates="user", cascade="all, delete-orphan")
+    collections_created = relationship("OplCollection", back_populates="creator")

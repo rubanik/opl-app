@@ -37,6 +37,31 @@ class Base(DeclarativeBase):
     pass
 
 
+class OplCollection(Base):
+    __tablename__ = "opl_collections"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    name = Column(String(150), nullable=False)
+    description = Column(Text, nullable=True)
+    created_by = Column(UUID(), ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    creator = relationship("User", back_populates="collections_created")
+    opls = relationship("Opl", back_populates="collection")
+    tags = relationship("OplTag", back_populates="collection")
+    subscribers = relationship("UserCollectionLink", back_populates="collection", cascade="all, delete-orphan")
+
+
+class UserCollectionLink(Base):
+    __tablename__ = "user_collection_links"
+
+    user_id = Column(UUID(), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="CASCADE"), primary_key=True)
+
+    user = relationship("User", back_populates="collections")
+    collection = relationship("OplCollection", back_populates="subscribers")
+
+
 class Opl(Base):
     __tablename__ = "opls"
 
@@ -46,10 +71,12 @@ class Opl(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     created_by = Column(UUID(), ForeignKey("users.id"), nullable=True)
+    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="SET NULL"), nullable=True)
 
     steps = relationship("Step", back_populates="opl", cascade="all, delete-orphan",
                          order_by="Step.step_number")
     author = relationship("User", back_populates="opls")
+    collection = relationship("OplCollection", back_populates="opls")
 
 
 class Step(Base):
@@ -84,8 +111,11 @@ class OplTag(Base):
     __tablename__ = "opl_tags"
 
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
-    name = Column(String(100), nullable=False, unique=True)
+    name = Column(String(100), nullable=False)
     color = Column(String(7), default="#1976d2")
+    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="CASCADE"), nullable=True)
+
+    collection = relationship("OplCollection", back_populates="tags")
 
 
 class OplTagLink(Base):

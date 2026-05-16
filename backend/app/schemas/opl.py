@@ -64,6 +64,34 @@ class AuthorOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OplCollectionOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class OplCollectionCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=150)
+    description: Optional[str] = None
+
+
+class OplCollectionUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=150)
+    description: Optional[str] = None
+
+
+class OplCollectionListOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    description: Optional[str] = None
+    opl_count: int = 0
+
+    model_config = {"from_attributes": True}
+
+
 class OplTagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     color: str = "#1976d2"
@@ -76,6 +104,7 @@ class OplTagLinkCreate(BaseModel):
 class OplCreate(BaseModel):
     title: str = Field(..., min_length=1)
     description: Optional[str] = None
+    collection_id: uuid.UUID
     steps: list[StepCreate]
     tags: list[uuid.UUID] = []
 
@@ -86,6 +115,7 @@ class OplOut(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime] = None
+    collection: Optional[OplCollectionOut] = None
     author: Optional[AuthorOut] = None
     steps: list[StepOut] = []
     tags: list[OplTagOut] = []
@@ -116,6 +146,7 @@ class OplListOut(BaseModel):
     description: Optional[str]
     created_at: datetime
     updated_at: Optional[datetime] = None
+    collection: Optional[OplCollectionOut] = None
     step_count: int
     total_duration_sec: int = 0
     author: Optional[AuthorOut] = None

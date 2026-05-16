@@ -8,7 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from app.models.opl import Base
+from app.models.opl import Base, OplCollection, UserCollectionLink
 from app.models.user import User
 import pytest
 
@@ -52,7 +52,20 @@ def test_user(db_session):
 
 
 @pytest.fixture
-def client(db_session, test_user):
+def default_collection(db_session, test_user):
+    coll = OplCollection(name="Общие", created_by=test_user.id)
+    db_session.add(coll)
+    db_session.flush()
+
+    link = UserCollectionLink(user_id=test_user.id, collection_id=coll.id)
+    db_session.add(link)
+    db_session.commit()
+    db_session.refresh(coll)
+    return coll
+
+
+@pytest.fixture
+def client(db_session, test_user, default_collection):
     from app.main import create_app
     from app.db.session import get_db
     from app.services.auth import get_current_user
@@ -71,6 +84,11 @@ def client(db_session, test_user):
     with TestClient(app) as c:
         yield c
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def default_collection_id(default_collection):
+    return str(default_collection.id)
 
 
 @pytest.fixture

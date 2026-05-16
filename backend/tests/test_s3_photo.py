@@ -21,9 +21,10 @@ def tmp_storage_dir(monkeypatch):
 
 
 class TestFSUploadPhoto:
-    def test_upload_photo_to_fs(self, client, sample_image_bytes, tmp_storage_dir):
+    def test_upload_photo_to_fs(self, client, sample_image_bytes, tmp_storage_dir, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "FS Photo",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -39,10 +40,11 @@ class TestFSUploadPhoto:
         assert data["mime_type"] == "image/jpeg"
         assert data["display_order"] == 0
 
-    def test_upload_stores_in_db_fallback_testing(self, client, sample_image_bytes):
+    def test_upload_stores_in_db_fallback_testing(self, client, sample_image_bytes, default_collection_id):
         """In TESTING mode, photo data is stored in DB (data column)."""
         create_resp = client.post("/api/opls/", json={
             "title": "Fallback",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -62,9 +64,10 @@ class TestFSUploadPhoto:
 
 
 class TestFSGetPhoto:
-    def test_get_photo_from_fs(self, client, sample_image_bytes):
+    def test_get_photo_from_fs(self, client, sample_image_bytes, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "FS GET",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -88,9 +91,10 @@ class TestFSGetPhoto:
 
 
 class TestFSDeletePhoto:
-    def test_delete_photo_removes_from_fs(self, client, sample_image_bytes):
+    def test_delete_photo_removes_from_fs(self, client, sample_image_bytes, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "FS Del",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -113,9 +117,10 @@ class TestFSDeletePhoto:
 
 
 class TestFSReplacePhoto:
-    def test_replace_photo_updates_fs(self, client, sample_image_bytes):
+    def test_replace_photo_updates_fs(self, client, sample_image_bytes, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "FS Replace",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
         })
         opl_id = create_resp.json()["id"]
@@ -145,9 +150,10 @@ class TestFSReplacePhoto:
         assert get_resp.status_code == 200
         assert get_resp.content == new_bytes
 
-    def test_replace_photo_nonexistent(self, client, sample_image_bytes):
+    def test_replace_photo_nonexistent(self, client, sample_image_bytes, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         with BytesIO(sample_image_bytes) as f:
@@ -208,10 +214,11 @@ class TestStorageModule:
 
 
 class TestPhotoCascadeWithFS:
-    def test_delete_opl_cascades_photos(self, client, sample_image_bytes, db_session):
+    def test_delete_opl_cascades_photos(self, client, sample_image_bytes, db_session, default_collection_id):
         from app.models.opl import Photo
         create_resp = client.post("/api/opls/", json={
             "title": "Cascade FS",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         opl_id = create_resp.json()["id"]
@@ -228,9 +235,10 @@ class TestPhotoCascadeWithFS:
         remaining = db_session.query(Photo).filter(Photo.step_id == step_id).count()
         assert remaining == 0
 
-    def test_multiple_photos_fs_workflow(self, client, sample_image_bytes):
+    def test_multiple_photos_fs_workflow(self, client, sample_image_bytes, default_collection_id):
         create_resp = client.post("/api/opls/", json={
             "title": "Multi FS",
+            "collection_id": default_collection_id,
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
         })
         opl_id = create_resp.json()["id"]

@@ -67,6 +67,50 @@ def init_db():
         migrate_photos_s3()
     except Exception:
         pass
+    # --- Collections migration ---
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS opl_collections (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    name VARCHAR(150) NOT NULL,
+                    description TEXT,
+                    created_by UUID REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT now()
+                )
+            """))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS user_collection_links (
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    collection_id UUID NOT NULL REFERENCES opl_collections(id) ON DELETE CASCADE,
+                    PRIMARY KEY (user_id, collection_id)
+                )
+            """))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("ALTER TABLE opls ADD COLUMN collection_id UUID REFERENCES opl_collections(id) ON DELETE SET NULL"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("ALTER TABLE opl_tags ADD COLUMN collection_id UUID REFERENCES opl_collections(id) ON DELETE CASCADE"))
+            conn.commit()
+    except Exception:
+        pass
+    try:
+        from app.db.migrate_collections import upgrade as migrate_collections
+        migrate_collections()
+    except Exception:
+        pass
 
 
 def create_app(init: bool = True) -> FastAPI:

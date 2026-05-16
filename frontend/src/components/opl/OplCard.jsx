@@ -105,14 +105,20 @@ export default function OplCard({ opl, onDelete, user }) {
                 <NavigateNextIcon sx={{ fontSize: 18, color: 'text.disabled', flexShrink: 0 }} />
               </Box>
 
-              {opl.description && (
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 1, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
-                >
-                  {opl.description}
-                </Typography>
+              {opl.description_html && (
+                <div
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    marginBottom: 8,
+                    fontSize: 14,
+                    color: 'rgba(0, 0, 0, 0.6)',
+                    lineHeight: 1.5,
+                  }}
+                  dangerouslySetInnerHTML={{ __html: opl.description_html }}
+                />
               )}
 
               <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', alignItems: 'center' }}>

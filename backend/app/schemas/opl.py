@@ -121,4 +121,9 @@ class OplListOut(BaseModel):
     author: Optional[AuthorOut] = None
     tags: list[OplTagOut] = []
 
+    @computed_field
+    @property
+    def description_html(self) -> Optional[str]:
+        return render_markdown(self.description)
+
     model_config = {"from_attributes": True}

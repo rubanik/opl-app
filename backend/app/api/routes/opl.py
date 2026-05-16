@@ -36,6 +36,7 @@ def list_opls(
         conditions.append(Opl.description.ilike(func.concat('%', description, '%')))
     if tag_ids and len(tag_ids) > 0:
         stmt = stmt.join(OplTagLink).where(OplTagLink.tag_id.in_(tag_ids))
+        stmt = stmt.distinct(Opl.id)
     if conditions:
         stmt = stmt.where(or_(*conditions))
     total = db.execute(select(func.count()).select_from(stmt.subquery())).scalar()

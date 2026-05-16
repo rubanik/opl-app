@@ -291,19 +291,7 @@ export default function OplList() {
                 </Button>
               </>
             )}
-            {!user && (
-              <Tooltip title="Войдите в шапке, чтобы создавать инструкции" arrow>
-                <Button
-                  variant="contained"
-                  size="small"
-                  startIcon={<AddIcon />}
-                  onClick={() => checkAuth(() => setNewOpen(true))}
-                  sx={{ borderRadius: 2 }}
-                >
-                  Новая
-                </Button>
-              </Tooltip>
-            )}
+
           </Box>
         </Box>
       )}

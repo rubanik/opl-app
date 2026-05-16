@@ -178,7 +178,7 @@ export default function OplDetail() {
 
   const confirmDeletePhoto = async () => {
     if (!confirm.stepId || !confirm.photoId) return;
-    await fetch(`${API}/steps/${confirm.stepId}/photos/${confirm.photoId}`, { method: 'DELETE' });
+    await fetch(`${API}/opls/steps/${confirm.stepId}/photos/${confirm.photoId}`, { method: 'DELETE' });
     const res = await fetch(`${API}/opls/${id}`);
     const data = await res.json();
     setOpl(data);

@@ -13,7 +13,7 @@ export default function PhotoCarousel({ photos, photoBaseUrl }) {
   };
 
   return (
-    <Box sx={{ position: 'relative', borderRadius: 2, overflow: 'hidden', bgcolor: '#f5f5f5', my: 1.5, maxWidth: '100%' }}>
+    <Box sx={{ position: 'relative', borderRadius: 2, overflow: 'hidden', bgcolor: '#f5f5f5', my: 1.5, maxWidth: { xs: '100%', sm: 600 }, mx: { xs: 0, sm: 'auto' } }}>
       <Box sx={{
         display: 'flex',
         transition: 'transform 0.3s ease',

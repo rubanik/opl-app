@@ -1,105 +1,106 @@
-import os
+import base64
 import uuid
 from io import BytesIO
 from datetime import datetime
 import re
 
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable, Flowable, Image as RLImage
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-try:
-    pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
-    pdfmetrics.registerFont(TTFont('DejaVu-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
-    pdfmetrics.registerFont(TTFont('DejaVu-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
-    pdfmetrics.registerFont(TTFont('DejaVu-BoldOblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf'))
-except Exception:
-    import warnings
-    warnings.warn("DejaVu fonts not found, falling back to Helvetica (no Cyrillic support)")
+pdfmetrics.registerFont(TTFont('DejaVu', '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVu-Bold', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVu-Oblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-Oblique.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVu-BoldOblique', '/usr/share/fonts/truetype/dejavu/DejaVuSans-BoldOblique.ttf'))
 
-_BOLD = 'Helvetica-Bold' if 'DejaVu-Bold' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu-Bold'
-_REG = 'Helvetica' if 'DejaVu' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu'
-_OBLIQUE = 'Helvetica-Oblique' if 'DejaVu-Oblique' not in pdfmetrics.getRegisteredFontNames() else 'DejaVu-Oblique'
+_BOLD = 'DejaVu-Bold'
+_REG = 'DejaVu'
+
+_PRIMARY = colors.HexColor('#1565c0')
+_PRIMARY_LIGHT = colors.HexColor('#e3f2fd')
+_TEXT_DARK = colors.HexColor('#212121')
+_TEXT_MID = colors.HexColor('#616161')
+_TEXT_LIGHT = colors.HexColor('#9e9e9e')
+_BORDER = colors.HexColor('#e0e0e0')
+
+CONTENT_W = A4[0] - 40*mm
+NUM_CIRCLE = 20*mm
+STEP_CONTENT_W = CONTENT_W - NUM_CIRCLE - 4*mm
 
 _styles = {
-    'Title': ParagraphStyle(
-        'opl_title',
-        fontName=_BOLD,
-        fontSize=16,
-        leading=20,
-        spaceAfter=6,
-        textColor=colors.HexColor('#1976d2'),
-    ),
-    'Subtitle': ParagraphStyle(
-        'opl_subtitle',
-        fontName=_BOLD,
-        fontSize=11,
-        leading=14,
-        spaceAfter=2,
-        textColor=colors.HexColor('#333333'),
-    ),
-    'Body': ParagraphStyle(
-        'opl_body',
-        fontName=_REG,
-        fontSize=10,
-        leading=13,
-        spaceAfter=4,
-        textColor=colors.HexColor('#555555'),
-    ),
-    'Small': ParagraphStyle(
-        'opl_small',
-        fontName=_REG,
-        fontSize=8,
-        leading=10,
-        spaceAfter=4,
-        textColor=colors.HexColor('#888888'),
-    ),
-    'Footer': ParagraphStyle(
-        'opl_footer',
-        fontName=_REG,
-        fontSize=8,
-        leading=10,
-        textColor=colors.HexColor('#999999'),
-        alignment=TA_CENTER,
-    ),
-    'Normal': ParagraphStyle(
-        'opl_normal',
-        fontName=_REG,
-        fontSize=10,
-        leading=13,
-    ),
+    'Title': ParagraphStyle('t', fontName=_BOLD, fontSize=20, leading=26,
+                            textColor=colors.white, spaceAfter=0),
+    'Subtitle': ParagraphStyle('st', fontName=_BOLD, fontSize=13, leading=17,
+                               textColor=_TEXT_DARK, spaceAfter=2),
+    'Body': ParagraphStyle('b', fontName=_REG, fontSize=10.5, leading=15,
+                           textColor=_TEXT_MID, spaceAfter=2),
+    'Small': ParagraphStyle('s', fontName=_REG, fontSize=8.5, leading=11,
+                            textColor=_TEXT_LIGHT, spaceAfter=2),
+    'Tag': ParagraphStyle('tg', fontName=_BOLD, fontSize=8, leading=10,
+                          textColor=colors.white, spaceAfter=0),
+    'Footer': ParagraphStyle('f', fontName=_REG, fontSize=8, leading=10,
+                             textColor=_TEXT_LIGHT, alignment=TA_CENTER),
+    'Desc': ParagraphStyle('d', fontName=_REG, fontSize=10.5, leading=14,
+                           textColor=colors.HexColor('#90caf9'), spaceAfter=0),
+    'NumText': ParagraphStyle('nt', fontName=_BOLD, fontSize=12, leading=16,
+                              textColor=colors.white, alignment=TA_CENTER,
+                              spaceBefore=0, spaceAfter=0),
 }
 
-_CONTENT_WIDTH = A4[0] - 40*mm
-_NUM_BOX = 18*mm
-_DESC_BOX = _CONTENT_WIDTH - _NUM_BOX
 
-
-class ColoredRect(Flowable):
-    def __init__(self, w, h, fill):
+class TagChip(Flowable):
+    """Colored tag chip with text label."""
+    def __init__(self, label, color_hex):
         Flowable.__init__(self)
-        self.width = w
-        self.height = h
-        self._fill = fill
+        self._label = label
+        self._color = colors.HexColor(color_hex)
+        self._h = 10*mm
+        tw = pdfmetrics.stringWidth(label, _BOLD, 8)
+        pad = 5*mm
+        self.width = max(tw + pad * 2, 10*mm)
+        self.height = self._h
 
     def draw(self):
         c = self.canv
-        c.setFillColor(self._fill)
-        c.setStrokeColor(colors.white)
-        c.setLineWidth(0.3)
-        c.roundRect(0, 0, self.width, self.height, 3, fill=1, stroke=1)
+        c.setFillColor(self._color)
+        c.roundRect(0, 0, self.width, self.height, 3, fill=1, stroke=0)
+        c.setFont(_BOLD, 8)
+        c.setFillColor(colors.white)
+        c.drawString(3*mm, (self._h - 8) / 2 + 1, self._label)
+
+
+def _num_circle(number):
+    """Step number in a colored circle."""
+    num_p = Paragraph(str(number), _styles['NumText'])
+    sz = NUM_CIRCLE - 2*mm
+    t = Table([[num_p]], colWidths=[sz], rowHeights=[sz])
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY),
+        ('BOX', (0, 0), (-1, -1), 1, _PRIMARY, radius=4),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    return t
 
 
 def fmt_dur(sec):
     if not sec:
-        return "0 sec"
+        return "0 сек"
     m, s = divmod(sec, 60)
-    return f"{m} min {s} sec" if s and m else (f"{m} min" if m else f"{s} sec")
+    parts = []
+    if m:
+        parts.append(f"{m} мин")
+    if s:
+        parts.append(f"{s} сек")
+    return " ".join(parts)
 
 
 def clean_html(text):
@@ -118,27 +119,37 @@ def clean_html(text):
     return t.strip()
 
 
-def _make_num_box(number):
-    nc = Paragraph(
-        str(number),
-        ParagraphStyle(
-            f'n_{uuid.uuid4().hex}',
-            fontName=_BOLD,
-            fontSize=14,
-            textColor=colors.white,
-            alignment=TA_CENTER,
-        )
-    )
-    box = Table([[nc]], colWidths=[_NUM_BOX - 2*mm], rowHeights=[14*mm])
-    box.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1976d2')),
-        ('BOX', (0, 0), (-1, -1), 0, colors.HexColor('#1976d2')),
-        ('TOPPADDING', (0, 0), (-1, -1), 0),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ('LEFTPADDING', (0, 0), (-1, -1), 0),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-    ]))
-    return box
+def _build_photo_section(photos, available_w):
+    """Build photo images for a step. Returns list of flowables."""
+    if not photos:
+        return []
+    result = []
+    max_show = min(len(photos), 2)
+    photo_w = (available_w - 4*mm) / 2  # 2 per row, 4mm gap
+    photo_h = photo_w * 0.75
+
+    row_items = []
+    for pi in range(max_show):
+        try:
+            img_buf = BytesIO(base64.b64decode(photos[pi]['data_base64']))
+            img = RLImage(img_buf, width=photo_w, height=photo_h, hAlign='LEFT')
+            row_items.append(img)
+        except Exception:
+            row_items.append(Spacer(1, photo_h))
+
+    result.append(Table(
+        [row_items],
+        colWidths=[photo_w + 2*mm] * len(row_items),
+    ))
+
+    if len(photos) > 2:
+        result.append(Paragraph(
+            f"+{len(photos) - 2} фото",
+            ParagraphStyle('pm', fontName=_REG, fontSize=8, leading=10,
+                          textColor=_TEXT_LIGHT, spaceAfter=0)
+        ))
+
+    return result
 
 
 def build_pdf(opl, steps, tags):
@@ -146,67 +157,138 @@ def build_pdf(opl, steps, tags):
     doc = SimpleDocTemplate(
         buf, pagesize=A4,
         leftMargin=20*mm, rightMargin=20*mm,
-        topMargin=15*mm, bottomMargin=15*mm,
+        topMargin=18*mm, bottomMargin=18*mm,
+        title=opl.get('title', ''),
     )
     story = []
 
-    story.append(Paragraph(opl['title'], _styles['Title']))
-
+    # ---- Header bar with colored background ----
+    header_items = [
+        Paragraph(opl['title'], _styles['Title']),
+    ]
     if opl.get('description'):
-        d = clean_html(opl['description'])
-        if d:
-            story.append(Paragraph(d, _styles['Body']))
-
-    if tags:
-        story.append(Spacer(1, 4))
-        for tg in tags:
-            story.append(ColoredRect(30*mm, 8*mm, colors.HexColor(tg['color'])))
-        story.append(Spacer(1, 6))
-
-    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#e0e0e0')))
-    story.append(Spacer(1, 8))
-
-    for st in steps:
-        numbox = _make_num_box(st['step_number'])
-
-        parts = []
-        if st.get('title'):
-            parts.append(Paragraph(st['title'], _styles['Subtitle']))
-        txt = clean_html(st.get('description_html') or st.get('description') or '')
-        if txt:
-            parts.append(Paragraph(txt, _styles['Body']))
-        parts.append(Paragraph(
-            f"Duration: {fmt_dur(st.get('duration_sec', 0))}",
-            _styles['Small']
+        header_items.append(Spacer(1, 3))
+        header_items.append(Paragraph(
+            clean_html(opl['description']),
+            _styles['Desc']
         ))
 
-        if parts:
-            first = parts[0]
-            story.append(Table(
-                [[numbox, first]],
-                colWidths=[_NUM_BOX, _DESC_BOX],
-            ))
-            for p in parts[1:]:
-                story.append(Table(
-                    [[Paragraph('', _styles['Normal']), p]],
-                    colWidths=[_NUM_BOX, _DESC_BOX],
-                ))
-        else:
-            story.append(Table(
-                [[numbox, Paragraph('', _styles['Normal'])]],
-                colWidths=[_NUM_BOX, _DESC_BOX],
-            ))
+    header = Table(
+        [[Paragraph("<br/>".join(
+            [f"<font name='{_BOLD}' size='20' color='#ffffff'>{opl['title']}</font>"] +
+            ([f"<br/><font name='{_REG}' size='10.5' color='#90caf9'>{clean_html(opl['description'])}</font>"]
+             if opl.get('description') else [])
+        ), ParagraphStyle('hdr', fontName=_REG, fontSize=1))]],
+        colWidths=[CONTENT_W],
+    )
+    header.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY),
+        ('TOPPADDING', (0, 0), (-1, -1), 10*mm),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 10*mm),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8*mm),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8*mm),
+        ('ROUNDEDCORNERS', 0),
+    ]))
+    story.append(header)
+    story.append(Spacer(1, 8*mm))
 
-        story.append(Spacer(1, 4))
-        story.append(HRFlowable(width="90%", thickness=0.5, color=colors.HexColor('#eeeeee')))
-        story.append(Spacer(1, 6))
+    # ---- Tags row ----
+    if tags:
+        tag_chip = [TagChip(tg['name'], tg['color']) for tg in tags]
+        tag_table = Table([tag_chip], colWidths=[tc.width + 3*mm for tc in tag_chip])
+        tag_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-2, -1), 3*mm),
+        ]))
+        story.append(tag_table)
+        story.append(Spacer(1, 5*mm))
 
-    story.append(Spacer(1, 20))
+    # ---- Date ----
     created = opl.get('created_at')
     if isinstance(created, str):
         created = datetime.fromisoformat(created.replace('Z', '+00:00'))
     story.append(Paragraph(
-        f"Created: {created.strftime('%d.%m.%Y %H:%M')}",
+        f"Создано: {created.strftime('%d.%m.%Y %H:%M')}",
+        _styles['Small']
+    ))
+    story.append(Spacer(1, 4*mm))
+
+    # ---- Divider ----
+    story.append(HRFlowable(width="100%", thickness=1.5, color=_PRIMARY, spaceAfter=2))
+    story.append(Spacer(1, 6*mm))
+
+    # ---- Steps ----
+    for i, st in enumerate(steps):
+        num_circle = _num_circle(st['step_number'])
+
+        # Build right column content
+        right_parts = []
+
+        if st.get('title'):
+            right_parts.append(Paragraph(st['title'], _styles['Subtitle']))
+
+        dur_text = f"⏱ {fmt_dur(st.get('duration_sec', 0))}"
+        dur_p = Paragraph(dur_text, _styles['Small'])
+        right_parts.append(dur_p)
+
+        txt = clean_html(st.get('description_html') or st.get('description') or '')
+        if txt:
+            right_parts.append(Spacer(1, 3))
+            right_parts.append(Paragraph(txt, _styles['Body']))
+
+        # Photos
+        photos = st.get('photos', [])
+        if photos:
+            photo_items = _build_photo_section(photos, STEP_CONTENT_W)
+            for pi in photo_items:
+                right_parts.append(Spacer(1, 4*mm))
+                right_parts.append(pi)
+
+        # Build step table: num circle | content
+        content_cell = right_parts[0] if right_parts else Paragraph(' ', _styles['Body'])
+
+        step_table = Table(
+            [[num_circle, content_cell]],
+            colWidths=[NUM_CIRCLE, STEP_CONTENT_W],
+        )
+        step_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (0, -1), 'TOP'),
+            ('TOPPADDING', (0, 0), (-1, -1), 0),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+            ('LEFTPADDING', (0, 0), (-1, -1), 0),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ]))
+        story.append(step_table)
+
+        # Remaining content (aligned under content column)
+        for p in right_parts[1:]:
+            spacer = Paragraph(' ', _styles['Body'])
+            cont_table = Table(
+                [[spacer, p]],
+                colWidths=[NUM_CIRCLE, STEP_CONTENT_W],
+            )
+            cont_table.setStyle(TableStyle([
+                ('TOPPADDING', (0, 0), (-1, -1), 0),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+                ('LEFTPADDING', (0, 0), (-1, -1), 0),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+            ]))
+            story.append(cont_table)
+
+        # Separator between steps
+        if i < len(steps) - 1:
+            story.append(Spacer(1, 4*mm))
+            story.append(HRFlowable(width="85%", thickness=0.5, color=_BORDER, spaceAfter=2))
+            story.append(Spacer(1, 4*mm))
+
+    # ---- Footer ----
+    story.append(Spacer(1, 15*mm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=_BORDER))
+    story.append(Spacer(1, 3*mm))
+    story.append(Paragraph(
+        f"Документ сгенерирован: {datetime.now().strftime('%d.%m.%Y %H:%M')}",
         _styles['Footer']
     ))
 

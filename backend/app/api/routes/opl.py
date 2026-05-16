@@ -356,9 +356,10 @@ def link_tags(opl_id: uuid.UUID, body: OplTagLinkCreate, db: Session = Depends(g
 
 @router.get("/{opl_id}/pdf")
 def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
+    import base64
     opl = db.execute(
         select(Opl).options(
-            joinedload(Opl.steps),
+            joinedload(Opl.steps).joinedload(Step.photos),
             joinedload(Opl.tags)
         ).where(Opl.id == opl_id)
     ).unique().scalar_one_or_none()
@@ -367,12 +368,19 @@ def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
     from app.services.markdown import render_markdown as render_md
     steps_data = []
     for s in opl.steps:
+        photo_data = []
+        for p in (s.photos or []):
+            photo_data.append({
+                'data_base64': base64.b64encode(p.data).decode('ascii'),
+                'mime_type': p.mime_type,
+            })
         steps_data.append({
             'step_number': s.step_number,
             'title': s.title,
             'description': s.description,
             'description_html': render_md(s.description),
             'duration_sec': s.duration_sec,
+            'photos': photo_data,
         })
     tags_data = [{"name": t.name, "color": t.color} for t in opl.tags]
     opl_data = {

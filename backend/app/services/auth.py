@@ -61,7 +61,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             settings.ldap_server,
             port=settings.ldap_port,
             use_ssl=use_ssl,
-            get_info=None,
+            get_info=ALL,
             connect_timeout=10,
         )
 

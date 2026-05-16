@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -18,11 +18,20 @@ import {
   Fab,
   useMediaQuery,
   InputAdornment,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import TagIcon from '@mui/icons-material/Tag';
 import DescriptionIcon from '@mui/icons-material/Description';
+import ShareIcon from '@mui/icons-material/Share';
+import PrintIcon from '@mui/icons-material/Print';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import QrCodeIcon from '@mui/icons-material/QrCode';
+import { QRCodeSVG } from 'qrcode.react';
 
 import OplCard from './OplCard';
 import CreateDialog from './CreateDialog';
@@ -34,6 +43,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../../hooks/useApi';
 
 const API = '/api';
+const APP_URL = window.location.origin;
 
 export default function OplList() {
   const [opls, setOpls] = useState([]);
@@ -51,12 +61,34 @@ export default function OplList() {
   const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null, remaining: 5 });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
+  const [shareQrOpen, setShareQrOpen] = useState(false);
   const debounceRef = useRef(null);
   const undoTimerRef = useRef(null);
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  // Read query param on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qParam = params.get('q');
+    if (qParam) {
+      setSearchQuery(qParam);
+      setDebouncedQuery(qParam);
+    }
+  }, []);
+
+  // Resolve tag param after allTags loaded
+  useEffect(() => {
+    if (!allTags.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const tagParam = params.get('tag');
+    if (!tagParam) return;
+    const names = tagParam.split(',');
+    const ids = allTags.filter(t => names.includes(t.name)).map(t => t.id);
+    if (ids.length) setSelectedTagIds(ids);
+  }, [allTags]);
 
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
@@ -92,6 +124,27 @@ export default function OplList() {
   useEffect(() => {
     fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
   }, []);
+
+  // Share link & description
+  const hasActiveFilters = selectedTagIds.length > 0 || debouncedQuery;
+  const shareTagNames = useMemo(() =>
+    selectedTagIds.map(tid => allTags.find(t => t.id === tid)?.name).filter(Boolean),
+    [selectedTagIds, allTags]
+  );
+  const shareUrl = useMemo(() => {
+    const url = new URL(APP_URL);
+    if (shareTagNames.length) url.searchParams.set('tag', shareTagNames.join(','));
+    if (debouncedQuery) url.searchParams.set('q', debouncedQuery);
+    return url.toString();
+  }, [shareTagNames, debouncedQuery]);
+  const shareDescription = useMemo(() => {
+    const parts = [];
+    if (shareTagNames.length) parts.push(`по тегу: ${shareTagNames.join(', ')}`);
+    if (debouncedQuery) parts.push(`с запросом: "${debouncedQuery}"`);
+    return parts.length
+      ? `Инструкции ${parts.join(', ')} (${total} шт.)`
+      : `Все инструкции (${total} шт.)`;
+  }, [shareTagNames, debouncedQuery, total]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -209,7 +262,17 @@ export default function OplList() {
               {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
             </Typography>
           </Box>
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+            {hasActiveFilters && (
+              <Tooltip title="Поделиться списком" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => setShareQrOpen(true)}
+                >
+                  <ShareIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {user && (
               <>
                 <Tooltip title="Управление тегами" arrow>
@@ -257,6 +320,16 @@ export default function OplList() {
                 {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
               </Typography>
             </Box>
+            {hasActiveFilters && (
+              <Tooltip title="Поделиться списком" arrow>
+                <IconButton
+                  size="small"
+                  onClick={() => setShareQrOpen(true)}
+                >
+                  <ShareIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {user && (
               <Tooltip title="Управление тегами" arrow>
                 <IconButton size="small" onClick={() => setTagManagerOpen(true)}>
@@ -433,6 +506,80 @@ export default function OplList() {
         }}
         onCancel={handleDeleteConfirm}
       />
+
+      {/* Share QR Dialog */}
+      <Dialog open={shareQrOpen} onClose={() => setShareQrOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <QrCodeIcon color="primary" />
+            Поделиться списком
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ textAlign: 'center', py: 2 }}>
+            <Typography variant="body1" sx={{ mb: 2, fontWeight: 500 }}>
+              {shareDescription}
+            </Typography>
+            <Box sx={{ my: 3 }}>
+              <QRCodeSVG value={shareUrl} size={220} />
+            </Box>
+            <Box sx={{
+              px: 2, py: 1, bgcolor: 'grey.100', borderRadius: 1,
+              wordBreak: 'break-all', fontSize: '0.75rem', mb: 2,
+            }}>
+              {shareUrl}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: 'center', gap: 1, px: 2, pb: 2 }}>
+          <Button
+            size="small"
+            startIcon={<ContentCopyIcon />}
+            onClick={() => {
+              navigator.clipboard.writeText(shareUrl);
+              setToast({ open: true, msg: 'Ссылка скопирована', severity: 'success' });
+            }}
+          >
+            Копировать
+          </Button>
+          <Button
+            size="small"
+            startIcon={<PrintIcon />}
+            onClick={() => {
+              const svgEl = document.querySelector(`[data-testid^='QRCode']`) ||
+                document.querySelector('svg[role="img"]');
+              const svgStr = svgEl ? svgEl.outerHTML : '';
+              const svgBase64 = svgStr
+                ? 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)))
+                : '';
+              const win = window.open('', '', 'width=400,height=500');
+              win.document.write(`
+                <!DOCTYPE html>
+                <html><head><meta charset="utf-8">
+                <title>Поделиться инструкциями</title>
+                <style>
+                  body { text-align: center; font-family: Arial, sans-serif; padding: 30px; }
+                  h2 { font-size: 18px; margin-bottom: 8px; }
+                  p { font-size: 12px; color: #666; margin-bottom: 20px; word-break: break-all; }
+                  img, svg { max-width: 220px; margin: 20px auto; display: block; }
+                </style></head>
+                <body>
+                  <h2>${shareDescription}</h2>
+                  <p>${shareUrl}</p>
+                  ${svgBase64 ? `<img src="${svgBase64}">` : `<h3>${shareDescription}</h3>`}
+                </body></html>
+              `);
+              win.document.close();
+              setTimeout(() => { win.print(); }, 300);
+            }}
+          >
+            Печать
+          </Button>
+          <Button size="small" onClick={() => setShareQrOpen(false)}>
+            Закрыть
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Toasts */}
       <Snackbar

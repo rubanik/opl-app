@@ -81,7 +81,7 @@ def _num_circle(number):
     t = Table([[num_p]], colWidths=[sz], rowHeights=[sz])
     t.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, -1), _PRIMARY),
-        ('BOX', (0, 0), (-1, -1), 1, _PRIMARY, radius=4),
+        ('ROUNDEDCORNERS', 4),
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
         ('LEFTPADDING', (0, 0), (-1, -1), 0),

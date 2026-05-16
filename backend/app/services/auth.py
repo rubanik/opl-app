@@ -61,7 +61,7 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
             settings.ldap_server,
             port=settings.ldap_port,
             use_ssl=use_ssl,
-            get_info=ALL,
+            get_info=None,
             connect_timeout=10,
         )
 
@@ -74,55 +74,23 @@ def authenticate_ldap(username: str, password: str) -> dict | None:
                 user=user_dn,
                 password=password,
                 authentication="SIMPLE",
-                auto_bind=False,
             )
             if not user_conn.bind():
                 logger.info(f"LDAP user-bind failed for {username}")
                 user_conn.unbind()
                 return None
-
-            # Fetch user attributes in separate search connection
-            attrs = {}
-            try:
-                search_conn = Connection(
-                    server,
-                    user=user_dn,
-                    password=password,
-                    authentication="SIMPLE",
-                    auto_bind=False,
-                )
-                search_conn.bind()
-                search_conn.search(
-                    search_base=user_dn,
-                    search_filter="(objectClass=person)",
-                    search_scope="BASE",
-                    attributes=["sn", "givenName", "title", "mail", "department", "extensionAttribute9"],
-                )
-                if search_conn.entries:
-                    entry = search_conn.entries[0]
-                    for attr_name in ["sn", "givenName", "title", "mail", "department", "extensionAttribute9"]:
-                        try:
-                            val = entry[attr_name].value
-                            if val:
-                                attrs[attr_name] = str(val)
-                        except Exception:
-                            pass
-                search_conn.unbind()
-            except Exception as e:
-                logger.warning(f"LDAP attribute fetch failed for {username}: {type(e).__name__}: {e}")
-
             user_conn.unbind()
-            logger.info(f"LDAP user-bind OK for {username}, attrs: {attrs}")
+            logger.info(f"LDAP user-bind OK for {username}")
             return {
                 "username": username,
-                "email": attrs.get("mail"),
-                "display_name": attrs.get("givenName", username),
+                "email": None,
+                "display_name": username,
                 "ldap_dn": user_dn,
-                "surname": attrs.get("sn"),
-                "given_name": attrs.get("givenName"),
-                "title": attrs.get("title"),
-                "department": attrs.get("department"),
-                "employee_id": attrs.get("extensionAttribute9"),
+                "surname": None,
+                "given_name": None,
+                "title": None,
+                "department": None,
+                "employee_id": None,
             }
 
         # --- Mode 2: Service-account bind + search (legacy) ---

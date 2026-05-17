@@ -4,7 +4,7 @@ const API = '/api';
 
 const CollectionContext = createContext(null);
 
-export function CollectionProvider({ children }) {
+export function CollectionProvider({ children, onError }) {
   const [collections, setCollections] = useState([]);
   const [activeCollectionId, setActiveCollectionId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -12,12 +12,11 @@ export function CollectionProvider({ children }) {
 
   const fetchCollections = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/collections/`);
+      const res = await fetch(API + '/collections/');
       if (!res.ok) throw new Error('Failed to fetch collections');
       const data = await res.json();
       setCollections(data);
 
-      // Restore active from localStorage or pick first
       const stored = localStorage.getItem('opl_active_collection');
       if (stored) {
         const exists = data.find(c => c.id === stored);
@@ -33,10 +32,11 @@ export function CollectionProvider({ children }) {
       }
     } catch (e) {
       setError(e.message);
+      if (onError) onError(e.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onError]);
 
   useEffect(() => {
     fetchCollections();
@@ -48,51 +48,87 @@ export function CollectionProvider({ children }) {
   }, []);
 
   const createCollection = async (title, description) => {
-    const res = await fetch(`${API}/collections/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, description }),
-    });
-    if (!res.ok) throw new Error('Failed to create collection');
-    const newColl = await res.json();
-    setCollections(prev => [newColl, ...prev]);
-    setActiveCollectionId(newColl.id);
-    localStorage.setItem('opl_active_collection', newColl.id);
-    return newColl;
+    try {
+      const res = await fetch(API + '/collections/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, description }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Failed to create collection');
+      }
+      const newColl = await res.json();
+      setCollections(prev => [newColl, ...prev]);
+      setActiveCollectionId(newColl.id);
+      localStorage.setItem('opl_active_collection', newColl.id);
+      return newColl;
+    } catch (e) {
+      setError(e.message);
+      if (onError) onError(e.message);
+      throw e;
+    }
   };
 
   const updateCollection = async (id, data) => {
-    const res = await fetch(`${API}/collections/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    if (!res.ok) throw new Error('Failed to update collection');
-    const updated = await res.json();
-    setCollections(prev => prev.map(c => c.id === id ? updated : c));
+    try {
+      const res = await fetch(API + '/collections/' + id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Failed to update collection');
+      }
+      const updated = await res.json();
+      setCollections(prev => prev.map(c => c.id === id ? updated : c));
+      return updated;
+    } catch (e) {
+      setError(e.message);
+      if (onError) onError(e.message);
+      throw e;
+    }
   };
 
   const deleteCollection = async (id) => {
-    const res = await fetch(`${API}/collections/${id}`, { method: 'DELETE' });
-    if (!res.ok) throw new Error('Failed to delete collection');
-    setCollections(prev => {
-      const next = prev.filter(c => c.id !== id);
-      if (activeCollectionId === id) {
-        setActiveCollectionId(next.length > 0 ? next[0].id : null);
-        localStorage.setItem('opl_active_collection', next.length > 0 ? next[0].id : '');
+    try {
+      const res = await fetch(API + '/collections/' + id, { method: 'DELETE' });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Failed to delete collection');
       }
-      return next;
-    });
+      setCollections(prev => {
+        const next = prev.filter(c => c.id !== id);
+        if (activeCollectionId === id) {
+          setActiveCollectionId(next.length > 0 ? next[0].id : null);
+          localStorage.setItem('opl_active_collection', next.length > 0 ? next[0].id : '');
+        }
+        return next;
+      });
+    } catch (e) {
+      setError(e.message);
+      if (onError) onError(e.message);
+      throw e;
+    }
   };
 
   const addOplToCollection = async (collectionId, oplId) => {
-    const res = await fetch(`${API}/collections/${collectionId}/opls`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ opl_id: oplId }),
-    });
-    if (!res.ok) throw new Error('Failed to add OPL to collection');
-    return res.json();
+    try {
+      const res = await fetch(API + '/collections/' + collectionId + '/opls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ opl_id: oplId }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.detail || 'Failed to add OPL to collection');
+      }
+      return res.json();
+    } catch (e) {
+      if (onError) onError(e.message);
+      throw e;
+    }
   };
 
   const activeCollection = collections.find(c => c.id === activeCollectionId) || null;

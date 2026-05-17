@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import time
 
@@ -21,6 +21,16 @@ def wait_for_db():
             return
         except Exception:
             time.sleep(2)
+
+
+def _safe_ddl(eng, ddl: str):
+    """Execute a DDL statement, swallowing errors if the object already exists."""
+    try:
+        with eng.connect() as conn:
+            conn.execute(text(ddl))
+            conn.commit()
+    except Exception:
+        pass
 
 
 def init_db():
@@ -67,13 +77,29 @@ def init_db():
         migrate_photos_s3()
     except Exception:
         pass
-    # Collections tables
-    try:
-        with eng.connect() as conn:
-            conn.execute(text("ALTER TABLE opl_tags ADD COLUMN collection_id UUID REFERENCES opl_collections(id) ON DELETE SET NULL"))
-            conn.commit()
-    except Exception:
-        pass
+    # --- Collections tables (explicit DDL for safe migration) ---
+    # Create opl_collections table if it doesn't exist
+    _safe_ddl(eng, """
+        CREATE TABLE IF NOT EXISTS opl_collections (
+            id UUID PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP,
+            updated_at TIMESTAMP
+        )
+    """)
+    # Create opl_collection_links table if it doesn't exist
+    _safe_ddl(eng, """
+        CREATE TABLE IF NOT EXISTS opl_collection_links (
+            opl_id UUID REFERENCES opls(id) ON DELETE CASCADE,
+            collection_id UUID REFERENCES opl_collections(id) ON DELETE CASCADE,
+            PRIMARY KEY (opl_id, collection_id)
+        )
+    """)
+    # Add collection_id to opl_tags if the column doesn't exist
+    _safe_ddl(eng, """
+        ALTER TABLE opl_tags ADD COLUMN collection_id UUID REFERENCES opl_collections(id) ON DELETE SET NULL
+    """)
 
 
 def create_app(init: bool = True) -> FastAPI:

@@ -20,13 +20,13 @@ class PhotoOut(BaseModel):
     display_order: int
     mime_type: str
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class StepCreate(BaseModel):
     step_number: int
-    title: str = ""
-    description: str = ""
+    title: str = ''
+    description: str = ''
     duration_sec: int = 0
     photos: list[PhotoIn] = []
 
@@ -45,7 +45,7 @@ class StepOut(BaseModel):
     def description_html(self) -> Optional[str]:
         return render_markdown(self.description)
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplTagOut(BaseModel):
@@ -53,7 +53,7 @@ class OplTagOut(BaseModel):
     name: str
     color: str
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class AuthorOut(BaseModel):
@@ -61,18 +61,12 @@ class AuthorOut(BaseModel):
     surname: str | None = None
     given_name: str | None = None
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplTagCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
-    color: str = "#1976d2"
-
-
-class OplTagCreateInput(BaseModel):
-    """Same as OplTagCreate but used for collection-scoped tag creation"""
-    name: str = Field(..., min_length=1, max_length=100)
-    color: str = "#1976d2"
+    color: str = '#1976d2'
 
 
 class OplTagLinkCreate(BaseModel):
@@ -101,7 +95,7 @@ class OplOut(BaseModel):
     def description_html(self) -> Optional[str]:
         return render_markdown(self.description)
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplUpdate(BaseModel):
@@ -132,7 +126,7 @@ class OplListOut(BaseModel):
     def description_html(self) -> Optional[str]:
         return render_markdown(self.description)
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 # --- Collection schemas ---
@@ -154,15 +148,14 @@ class OplCollectionOut(BaseModel):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplCollectionItemOut(BaseModel):
-    """Single OPL inside a collection (compact)"""
     id: uuid.UUID
     title: str
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplCollectionDetailOut(BaseModel):
@@ -173,7 +166,7 @@ class OplCollectionDetailOut(BaseModel):
     updated_at: Optional[datetime] = None
     items: list[OplCollectionItemOut] = []
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}
 
 
 class OplCollectionLinkCreate(BaseModel):
@@ -184,4 +177,4 @@ class OplCollectionLinkOut(BaseModel):
     opl_id: uuid.UUID
     collection_id: uuid.UUID
 
-    model_config = {"from_attributes": True}
+    model_config = {'from_attributes': True}

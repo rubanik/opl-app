@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import uuid
 from datetime import datetime
@@ -50,6 +50,9 @@ class Opl(Base):
     steps = relationship("Step", back_populates="opl", cascade="all, delete-orphan",
                          order_by="Step.step_number")
     author = relationship("User", back_populates="opls")
+    collection_links = relationship(
+        "OplCollectionLink", back_populates="opl", cascade="all, delete-orphan"
+    )
 
 
 class Step(Base):
@@ -124,22 +127,17 @@ Opl.tag_links = relationship(
     "OplTagLink", back_populates="opl", cascade="all, delete-orphan"
 )
 Opl.tags = relationship(
-    "OplTag", secondary="opl_tag_links", back_populates="opls"
+    "OplTag", secondary="opl_tag_links", back_populates="opls", overlaps="tag_links"
 )
 OplTag.opls = relationship(
-    "Opl", secondary="opl_tag_links", back_populates="tags"
+    "Opl", secondary="opl_tag_links", back_populates="tags", overlaps="tag_links"
 )
 OplTag.opl_links = relationship(
-    "OplTagLink", back_populates="tag", cascade="all, delete-orphan"
+    "OplTagLink", back_populates="tag", cascade="all, delete-orphan", overlaps="opls,tags"
 )
 OplTagLink.opl = relationship(
-    "Opl", back_populates="tag_links"
+    "Opl", back_populates="tag_links", overlaps="opls,tags"
 )
 OplTagLink.tag = relationship(
-    "OplTag", back_populates="opl_links"
-)
-
-# --- Collection relationships ---
-Opl.collection_links = relationship(
-    "OplCollectionLink", back_populates="opl", cascade="all, delete-orphan"
+    "OplTag", back_populates="opl_links", overlaps="opls,tags"
 )

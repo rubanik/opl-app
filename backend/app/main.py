@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import time
 
@@ -88,6 +88,8 @@ def init_db():
             updated_at TIMESTAMP
         )
     """)
+    # Fix: legacy 'name' column must be renamed BEFORE adding 'title' column
+    _safe_ddl(eng, "ALTER TABLE opl_collections RENAME COLUMN name TO title")
     # Ensure columns exist on already-created tables (pre-migration compat)
     for col, typ in [
         ("title", "VARCHAR(255)"),
@@ -96,6 +98,10 @@ def init_db():
         ("updated_at", "TIMESTAMP"),
     ]:
         _safe_ddl(eng, f"ALTER TABLE opl_collections ADD COLUMN {col} {typ}")
+    # Backfill NULL title values (after rename or add)
+    _safe_ddl(eng, "UPDATE opl_collections SET title = 'Untitled' WHERE title IS NULL")
+    # Drop legacy 'name' column if it still exists (rename already handled above)
+    _safe_ddl(eng, "ALTER TABLE opl_collections DROP COLUMN IF EXISTS name")
     # Create opl_collection_links table if it doesn't exist
     _safe_ddl(eng, """
         CREATE TABLE IF NOT EXISTS opl_collection_links (

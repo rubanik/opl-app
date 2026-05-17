@@ -62,13 +62,14 @@ export default function OplList() {
   const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null, remaining: 5 });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
+  const [fetchError, setFetchError] = useState(null);
   const [shareQrOpen, setShareQrOpen] = useState(false);
   const debounceRef = useRef(null);
   const undoTimerRef = useRef(null);
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
-  const { activeCollectionId, addOplToCollection } = useCollection();
+  const { activeCollectionId, addOplToCollection, error: collectionError } = useCollection();
   const isMobile = useMediaQuery('(max-width:600px)');
 
   // Determine if we're in collection mode
@@ -98,7 +99,10 @@ export default function OplList() {
     const tagsUrl = isCollectionMode
       ? `${API}/collections/${activeCollectionId}/tags`
       : `${API}/opls/tags`;
-    fetch(tagsUrl).then(r => r.json()).then(setAllTags);
+    fetch(tagsUrl)
+      .then(r => { if (!r.ok) throw new Error(`Tags error ${r.status}`); return r.json(); })
+      .then(setAllTags)
+      .catch((e) => console.error('Failed to fetch tags:', e));
   }, [isCollectionMode, activeCollectionId]);
 
   const fetchOpls = useCallback(async (query) => {
@@ -117,18 +121,27 @@ export default function OplList() {
     const baseUrl = isCollectionMode
       ? `${API}/collections/${activeCollectionId}/opls-list`
       : `${API}/opls/`;
-    const res = await fetch(`${baseUrl}?${params.toString()}`);
-    let data = await res.json();
-    setTotal(data.total);
-    let items = data.items;
-    switch (sortBy) {
-      case 'newest': items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
-      case 'oldest': items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
-      case 'nameAZ': items.sort((a, b) => a.title.localeCompare(b.title, 'ru')); break;
-      case 'nameZA': items.sort((a, b) => b.title.localeCompare(a.title, 'ru')); break;
-      default: break;
+    try {
+      const res = await fetch(`${baseUrl}?${params.toString()}`);
+      if (!res.ok) throw new Error(`Fetch error ${res.status}`);
+      let data = await res.json();
+      setTotal(data.total);
+      setFetchError(null);
+      let items = data.items;
+      switch (sortBy) {
+        case 'newest': items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)); break;
+        case 'oldest': items.sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); break;
+        case 'nameAZ': items.sort((a, b) => a.title.localeCompare(b.title, 'ru')); break;
+        case 'nameZA': items.sort((a, b) => b.title.localeCompare(a.title, 'ru')); break;
+        default: break;
+      }
+      setOpls(items);
+    } catch (e) {
+      console.error('Failed to fetch OPLs:', e);
+      setFetchError(e.message);
+      setOpls([]);
+      setTotal(0);
     }
-    setOpls(items);
     setLoading(false);
   }, [selectedTagIds, sortBy, currentPage, isCollectionMode, activeCollectionId]);
 
@@ -447,13 +460,23 @@ export default function OplList() {
             />
           ))
         ) : (
-          <EmptyState
-            title={searchQuery ? 'Ничего не найдено' : (isCollectionMode ? 'Коллекция пуста' : 'Пока нет инструкций')}
-            description={searchQuery ? 'Попробуйте изменить запрос' : (isCollectionMode ? 'Добавьте инструкции в эту коллекцию' : 'Создайте первую инструкцию OPL')}
-            actionLabel={user ? (isCollectionMode ? 'Создать' : 'Создать') : undefined}
-            onAction={user ? () => setNewOpen(true) : undefined}
-            icon={<DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
-          />
+          {(fetchError || collectionError) ? (
+            <EmptyState
+              title={'Ошибка загрузки'}
+              description={fetchError || collectionError}
+              actionLabel={'Повторить'}
+              onAction={() => { setFetchError(null); fetchOpls(); }}
+              icon={<DescriptionIcon sx={{ fontSize: 48, color: 'error' }} />}
+            />
+          ) : (
+            <EmptyState
+              title={searchQuery ? 'Ничего не найдено' : (isCollectionMode ? 'Коллекция пуста' : 'Пока нет инструкций')}
+              description={searchQuery ? 'Попробуйте изменить запрос' : (isCollectionMode ? 'Добавьте инструкции в эту коллекцию' : 'Создайте первую инструкцию OPL')}
+              actionLabel={user ? (isCollectionMode ? 'Создать' : 'Создать') : undefined}
+              onAction={user ? () => setNewOpen(true) : undefined}
+              icon={<DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
+            />
+          )}
         )}
       </Stack>
 
@@ -494,7 +517,10 @@ export default function OplList() {
           const tagsUrl = isCollectionMode
             ? `${API}/collections/${activeCollectionId}/tags`
             : `${API}/opls/tags`;
-          fetch(tagsUrl).then(r => r.json()).then(setAllTags);
+          fetch(tagsUrl)
+            .then(r => { if (!r.ok) throw new Error(`Tags error ${r.status}`); return r.json(); })
+            .then(setAllTags)
+            .catch((e) => console.error('Failed to refresh tags:', e));
           fetchOpls();
         }}
         isCollectionMode={isCollectionMode}

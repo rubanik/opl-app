@@ -22,7 +22,8 @@ def upgrade() -> None:
     except Exception:
         pass
 
-    # 2. Migrate existing photo.data -> filesystem
+    # 2. Migrate existing photo.data -> filesystem (one transaction per photo
+    #    so that a failure on one photo does not abort the whole batch)
     try:
         with eng.connect() as conn:
             rows = conn.execute(
@@ -36,13 +37,14 @@ def upgrade() -> None:
                 key = f"{uuid.uuid4()}.jpg"
                 try:
                     upload_photo(key, data, mime_type or "image/jpeg")
-                    conn.execute(
-                        text("UPDATE photos SET s3_key = :key, data = NULL WHERE id = :pid"),
-                        {"key": key, "pid": photo_id},
-                    )
+                    with eng.connect() as uconn:
+                        uconn.execute(
+                            text("UPDATE photos SET s3_key = :key, data = NULL WHERE id = :pid"),
+                            {"key": key, "pid": photo_id},
+                        )
+                        uconn.commit()
                 except Exception as e:
                     logger.error(f"[migrate_photos_s3] Failed to migrate photo {photo_id}: {e}")
-            conn.commit()
             logger.info("[migrate_photos_s3] Migration complete")
     except Exception as e:
         logger.warning(f"[migrate_photos_s3] Migration skipped: {e}")

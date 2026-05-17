@@ -22,13 +22,7 @@ export function CollectionProvider({ children, onError }) {
         const exists = data.find(c => c.id === stored);
         if (exists) {
           setActiveCollectionId(stored);
-        } else if (data.length > 0) {
-          setActiveCollectionId(data[0].id);
         }
-      } else if (data.length > 0) {
-        setActiveCollectionId(data[0].id);
-      } else {
-        setActiveCollectionId(null);
       }
     } catch (e) {
       setError(e.message);
@@ -43,8 +37,12 @@ export function CollectionProvider({ children, onError }) {
   }, [fetchCollections]);
 
   const switchCollection = useCallback((id) => {
-    setActiveCollectionId(id);
-    localStorage.setItem('opl_active_collection', id);
+    setActiveCollectionId(id || null);
+    if (id) {
+      localStorage.setItem('opl_active_collection', id);
+    } else {
+      localStorage.removeItem('opl_active_collection');
+    }
   }, []);
 
   const createCollection = async (title, description) => {

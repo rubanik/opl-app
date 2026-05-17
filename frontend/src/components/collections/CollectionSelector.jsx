@@ -23,6 +23,7 @@ import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ListIcon from '@mui/icons-material/List';
 
 import { useCollection } from '../collections/CollectionContext';
 import ConfirmDialog from '../common/ConfirmDialog';
@@ -31,6 +32,7 @@ export default function CollectionSelector({ isMobile }) {
   const {
     collections,
     activeCollection,
+    activeCollectionId,
     switchCollection,
     createCollection,
     updateCollection,
@@ -113,7 +115,7 @@ export default function CollectionSelector({ isMobile }) {
               {activeCollection ? <FolderOpenIcon /> : <FolderIcon />}
             </IconButton>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }} onClick={handleMenuOpen}>
               <IconButton size='small' color='inherit' onClick={handleMenuOpen}>
                 {activeCollection ? <FolderOpenIcon /> : <FolderIcon />}
               </IconButton>
@@ -127,12 +129,25 @@ export default function CollectionSelector({ isMobile }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {activeCollection?.title || 'Коллекции'}
+                {activeCollection?.title || 'Все инструкции'}
               </Typography>
             </Box>
           )}
 
           <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose} keepMounted>
+            <MenuItem
+              selected={!activeCollectionId}
+              onClick={() => {
+                switchCollection(null);
+                handleMenuClose();
+              }}
+              sx={{ fontSize: '0.875rem', justifyContent: 'space-between' }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <ListIcon fontSize='small' color={!activeCollectionId ? 'primary' : 'disabled'} />
+                <Typography variant='body2'>Все инструкции</Typography>
+              </Box>
+            </MenuItem>
             {collections.map((coll) => (
               <MenuItem
                 key={coll.id}

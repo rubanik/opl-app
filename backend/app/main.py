@@ -88,6 +88,14 @@ def init_db():
             updated_at TIMESTAMP
         )
     """)
+    # Ensure columns exist on already-created tables (pre-migration compat)
+    for col, typ in [
+        ("title", "VARCHAR(255)"),
+        ("description", "TEXT"),
+        ("created_at", "TIMESTAMP"),
+        ("updated_at", "TIMESTAMP"),
+    ]:
+        _safe_ddl(eng, f"ALTER TABLE opl_collections ADD COLUMN {col} {typ}")
     # Create opl_collection_links table if it doesn't exist
     _safe_ddl(eng, """
         CREATE TABLE IF NOT EXISTS opl_collection_links (

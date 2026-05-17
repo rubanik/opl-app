@@ -194,7 +194,8 @@ def list_opls_in_collection(
             step_count=data['step_counts'].get(r.id, 0),
             total_duration_sec=data['duration_totals'].get(r.id, 0),
             author=data['author_map'].get(r.id),
-            tags=data['tag_map'].get(r.id, [])
+            tags=data['tag_map'].get(r.id, []),
+            collections=[]
         ))
 
     return {'items': result, 'total': data['total'], 'skip': skip, 'limit': limit}

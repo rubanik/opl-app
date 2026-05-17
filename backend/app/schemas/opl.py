@@ -120,6 +120,7 @@ class OplListOut(BaseModel):
     total_duration_sec: int = 0
     author: Optional[AuthorOut] = None
     tags: list[OplTagOut] = []
+    collections: list[OplCollectionChipOut] = []
 
     @computed_field
     @property
@@ -151,6 +152,11 @@ class OplCollectionOut(BaseModel):
     model_config = {'from_attributes': True}
 
 
+class OplCollectionChipOut(BaseModel):
+    id: uuid.UUID
+    title: str
+
+
 class OplCollectionItemOut(BaseModel):
     id: uuid.UUID
     title: str
@@ -171,6 +177,10 @@ class OplCollectionDetailOut(BaseModel):
 
 class OplCollectionLinkCreate(BaseModel):
     opl_id: uuid.UUID
+
+
+class OplBulkCollectionLinkCreate(BaseModel):
+    collection_ids: list[uuid.UUID]
 
 
 class OplCollectionLinkOut(BaseModel):

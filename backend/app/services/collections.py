@@ -83,6 +83,28 @@ def remove_opl_from_collection(db: Session, collection_id: uuid.UUID, opl_id: uu
     return True
 
 
+def get_opl_collections(db: Session, opl_id: uuid.UUID) -> list[OplCollection]:
+    stmt = select(OplCollection).join(OplCollectionLink).where(OplCollectionLink.opl_id == opl_id).order_by(OplCollection.title)
+    return db.execute(stmt).scalars().all()
+
+
+def add_opl_to_collections(db: Session, opl_id: uuid.UUID, collection_ids: list[uuid.UUID]) -> list[OplCollectionLink]:
+    links = []
+    for coll_id in collection_ids:
+        existing = db.execute(
+            select(OplCollectionLink).where(
+                OplCollectionLink.collection_id == coll_id,
+                OplCollectionLink.opl_id == opl_id,
+            )
+        ).scalar_one_or_none()
+        if not existing:
+            link = OplCollectionLink(collection_id=coll_id, opl_id=opl_id)
+            db.add(link)
+            links.append(link)
+    db.flush()
+    return links
+
+
 def get_collection_tags(db: Session, collection_id: uuid.UUID) -> list[OplTag]:
     stmt = select(OplTag).where(OplTag.collection_id == collection_id).order_by(OplTag.name)
     return db.execute(stmt).scalars().all()

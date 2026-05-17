@@ -35,6 +35,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 import OplCard from './OplCard';
 import CreateDialog from './CreateDialog';
+import AddToCollectionsDialog from './AddToCollectionsDialog';
 import TagManagerDialog from './TagManagerDialog';
 import ConfirmDialog from '../common/ConfirmDialog';
 import EmptyState from '../common/EmptyState';
@@ -62,8 +63,10 @@ export default function OplList() {
   const [undoDelete, setUndoDelete] = useState({ open: false, opl: null, id: null, remaining: 5 });
   const [deleteConfirm, setDeleteConfirm] = useState({ open: false, id: null });
   const [toast, setToast] = useState({ open: false, msg: '', severity: 'success' });
+  const [manageCollectionsOplId, setManageCollectionsOplId] = useState(null);
   const [fetchError, setFetchError] = useState(null);
   const [shareQrOpen, setShareQrOpen] = useState(false);
+  const [allCollections, setAllCollections] = useState([]);
   const debounceRef = useRef(null);
   const undoTimerRef = useRef(null);
   const undoIntervalRef = useRef(null);
@@ -104,6 +107,14 @@ export default function OplList() {
       .then(setAllTags)
       .catch((e) => console.error('Failed to fetch tags:', e));
   }, [isCollectionMode, activeCollectionId]);
+
+  // Fetch all collections
+  useEffect(() => {
+    fetch(`${API}/collections/`)
+      .then(r => { if (!r.ok) throw new Error(`Collections error ${r.status}`); return r.json(); })
+      .then(setAllCollections)
+      .catch((e) => console.error('Failed to fetch collections:', e));
+  }, []);
 
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
@@ -244,21 +255,19 @@ export default function OplList() {
     setUndoDelete({ open: false, opl: null, id: null });
   };
 
-  const handleCreate = async (createdOpl, stepPhotos, selectedTags) => {
-    // Auto-add to active collection if in collection mode
-    if (isCollectionMode) {
-      try {
-        await addOplToCollection(activeCollectionId, createdOpl.id);
-      } catch (e) {
-        console.error('Failed to add OPL to collection:', e);
-      }
-    }
-
+  const handleCreate = async (createdOpl, stepPhotos, selectedTags, selectedCollectionIds) => {
     if (selectedTags?.length) {
       await fetch(`${API}/opls/${createdOpl.id}/tags`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tag_ids: selectedTags }),
+      });
+    }
+    if (selectedCollectionIds?.length) {
+      await fetch(`${API}/opls/${createdOpl.id}/collections`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collection_ids: selectedCollectionIds }),
       });
     }
     for (const { stepId, photos } of stepPhotos) {
@@ -456,6 +465,7 @@ export default function OplList() {
               key={opl.id}
               opl={opl}
               onDelete={handleDeleteClick}
+              onManageCollections={(id) => setManageCollectionsOplId(id)}
               user={user}
             />
           ))
@@ -507,6 +517,12 @@ export default function OplList() {
         onClose={() => setNewOpen(false)}
         onSubmit={handleCreate}
         tags={allTags}
+        collections={allCollections}
+      />
+      <AddToCollectionsDialog
+        open={!!manageCollectionsOplId}
+        onClose={() => { setManageCollectionsOplId(null); fetchOpls(); }}
+        oplId={manageCollectionsOplId}
       />
       <TagManagerDialog
         open={tagManagerOpen}

@@ -16,10 +16,15 @@ import TimerIcon from '@mui/icons-material/Timer';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import DescriptionIcon from '@mui/icons-material/Description';
 import StepIcon from '@mui/icons-material/MenuBook';
-export default function OplCard({ opl, onDelete, user }) {
+import FolderIcon from '@mui/icons-material/Folder';
+import FolderOpenIcon from '@mui/icons-material/FolderOpen';
+import FolderSpecialIcon from '@mui/icons-material/FolderSpecial';
+
+export default function OplCard({ opl, onDelete, onManageCollections, user }) {
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width:600px)');
   const [tagsAnchor, setTagsAnchor] = useState(null);
+  const [collectionsAnchor, setCollectionsAnchor] = useState(null);
 
   const formatDuration = (sec) => {
     const m = Math.floor(sec / 60);
@@ -37,9 +42,14 @@ export default function OplCard({ opl, onDelete, user }) {
   };
 
   const tags = opl.tags || [];
-  const showMore = tags.length > 2;
-  const visibleTags = showMore ? tags.slice(0, 2) : tags;
-  const hiddenCount = showMore ? tags.length - 2 : 0;
+  const showMoreTags = tags.length > 2;
+  const visibleTags = showMoreTags ? tags.slice(0, 2) : tags;
+  const hiddenTagsCount = showMoreTags ? tags.length - 2 : 0;
+
+  const collections = opl.collections || [];
+  const showMoreCollections = collections.length > 1;
+  const visibleCollections = showMoreCollections ? collections.slice(0, 1) : collections;
+  const hiddenCollectionsCount = showMoreCollections ? collections.length - 1 : 0;
 
   const getAuthorName = () => {
     if (!opl.author) return '';
@@ -142,9 +152,9 @@ export default function OplCard({ opl, onDelete, user }) {
                     }}
                   />
                 ))}
-                {showMore && (
+                {showMoreTags && (
                   <Chip
-                    label={`+${hiddenCount}`}
+                    label={`+${hiddenTagsCount}`}
                     size="small"
                     variant="outlined"
                     sx={{
@@ -154,6 +164,36 @@ export default function OplCard({ opl, onDelete, user }) {
                     onClick={(e) => {
                       e.stopPropagation();
                       setTagsAnchor(e.currentTarget);
+                    }}
+                  />
+                )}
+                {visibleCollections.map(coll => (
+                  <Chip
+                    key={coll.id}
+                    label={coll.title}
+                    size="small"
+                    icon={<FolderIcon sx={{ fontSize: 10 }} />}
+                    sx={{
+                      bgcolor: '#e8eaf6', color: '#283593',
+                      fontWeight: 500, fontSize: '0.7rem', height: 22,
+                      borderRadius: 1,
+                    }}
+                  />
+                ))}
+                {showMoreCollections && (
+                  <Chip
+                    icon={<FolderOpenIcon sx={{ fontSize: 10 }} />}
+                    label={`+${hiddenCollectionsCount}`}
+                    size="small"
+                    variant="outlined"
+                    sx={{
+                      fontSize: '0.65rem', height: 22, borderRadius: 1,
+                      cursor: 'pointer', minWidth: 'auto', px: 0.5,
+                      borderColor: '#283593', color: '#283593',
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCollectionsAnchor(e.currentTarget);
                     }}
                   />
                 )}
@@ -185,25 +225,38 @@ export default function OplCard({ opl, onDelete, user }) {
             </Box>
 
             {user && (
-              <Tooltip title="Удалить" arrow>
-                <IconButton
-                  size="small"
-                  sx={{
-                    color: 'text.disabled',
-                    ml: 'auto', flexShrink: 0,
-                    '&:hover': { color: 'error.main', bgcolor: '#ffebee' },
-                  }}
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(opl.id); }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
+              <Box sx={{ display: 'flex', ml: 'auto', flexShrink: 0, gap: 0.5 }}>
+                <Tooltip title="Коллекции" arrow>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: 'text.disabled',
+                      '&:hover': { color: 'primary.main', bgcolor: '#e8eaf6' },
+                    }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onManageCollections(opl.id); }}
+                  >
+                    <FolderSpecialIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Удалить" arrow>
+                  <IconButton
+                    size="small"
+                    sx={{
+                      color: 'text.disabled',
+                      '&:hover': { color: 'error.main', bgcolor: '#ffebee' },
+                    }}
+                    onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(opl.id); }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             )}
           </Box>
         </CardContent>
       </Card>
 
-      {showMore && (
+      {showMoreTags && (
         <Menu
           anchorEl={tagsAnchor}
           open={Boolean(tagsAnchor)}
@@ -228,6 +281,31 @@ export default function OplCard({ opl, onDelete, user }) {
                 }}
               />
               {tag.name}
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
+
+      {showMoreCollections && (
+        <Menu
+          anchorEl={collectionsAnchor}
+          open={Boolean(collectionsAnchor)}
+          onClose={() => setCollectionsAnchor(null)}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {collections.map(coll => (
+            <MenuItem
+              key={coll.id}
+              onClick={() => setCollectionsAnchor(null)}
+              sx={{
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <FolderIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+              {coll.title}
             </MenuItem>
           ))}
         </Menu>

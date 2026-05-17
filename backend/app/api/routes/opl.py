@@ -14,7 +14,9 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut
+from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplBulkCollectionLinkCreate, OplCollectionOut
+from app.models.opl import OplCollection, OplCollectionLink
+from app.services.collections import get_opl_collections, add_opl_to_collections, remove_opl_from_collection
 from app.services.auth import get_current_user
 import qrcode
 
@@ -68,6 +70,14 @@ def list_opls(
             tag = db.get(OplTag, link.tag_id)
             if tag:
                 tag_map.setdefault(link.opl_id, []).append(tag)
+    collection_map = {}
+    if opl_ids:
+        for link in db.execute(
+            select(OplCollectionLink).where(OplCollectionLink.opl_id.in_(opl_ids))
+        ).scalars().all():
+            coll = db.get(OplCollection, link.collection_id)
+            if coll:
+                collection_map.setdefault(link.opl_id, []).append({"id": coll.id, "title": coll.title})
     author_map = {}
     if opl_ids:
         for opl_id in opl_ids:
@@ -89,7 +99,8 @@ def list_opls(
             step_count=step_counts.get(r.id, 0),
             total_duration_sec=duration_totals.get(r.id, 0),
             author=author_map.get(r.id),
-            tags=tag_map.get(r.id, [])
+            tags=tag_map.get(r.id, []),
+            collections=collection_map.get(r.id, [])
         ))
     return {"items": result, "total": total, "skip": skip, "limit": limit}
 
@@ -425,3 +436,48 @@ def download_pdf(opl_id: uuid.UUID, db: Session = Depends(get_db)):
         media_type="application/pdf",
         headers={"Content-Disposition": f'inline; filename="opl_{opl_id}.pdf"'},
     )
+
+
+@router.get("/{opl_id}/collections", response_model=list[OplCollectionOut])
+def get_opl_collections_route(opl_id: uuid.UUID, db: Session = Depends(get_db)):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    collections = get_opl_collections(db, opl_id)
+    return collections
+
+
+@router.post("/{opl_id}/collections")
+def add_opl_to_collections_route(
+    opl_id: uuid.UUID,
+    body: OplBulkCollectionLinkCreate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    for coll_id in body.collection_ids:
+        coll = db.get(OplCollection, coll_id)
+        if not coll:
+            raise HTTPException(404, f"Коллекция {coll_id} не найдена")
+    add_opl_to_collections(db, opl_id, body.collection_ids)
+    db.commit()
+    collections = get_opl_collections(db, opl_id)
+    return {"ok": True, "collections": [{"id": c.id, "title": c.title} for c in collections]}
+
+
+@router.delete("/{opl_id}/collections/{collection_id}")
+def remove_opl_from_collection_route(
+    opl_id: uuid.UUID,
+    collection_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    remove_opl_from_collection(db, collection_id, opl_id)
+    db.commit()
+    collections = get_opl_collections(db, opl_id)
+    return {"ok": True, "collections": [{"id": c.id, "title": c.title} for c in collections]}

@@ -26,16 +26,18 @@ import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
 import CodeIcon from '@mui/icons-material/Code';
 import TimerIcon from '@mui/icons-material/Timer';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import FolderIcon from '@mui/icons-material/Folder';
 
 const API = '/api';
 
-export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = [] }) {
+export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = [], collections: allCollections = [] }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState([
     { step_number: 1, title: '', description: '', duration_sec: 0, photos: [] },
   ]);
   const [selectedTags, setSelectedTags] = useState([]);
+  const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const isMobile = useMediaQuery('(max-width:600px)');
 
@@ -125,11 +127,12 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
       photos: s.photos,
     }));
 
-    await onSubmit(createdOpl, stepPhotos, selectedTags);
+    await onSubmit(createdOpl, stepPhotos, selectedTags, selectedCollectionIds);
 
     setTitle('');
     setDescription('');
     setSelectedTags([]);
+    setSelectedCollectionIds([]);
     setSteps([
       { step_number: 1, title: '', description: '', duration_sec: 0, photos: [] },
     ]);
@@ -232,6 +235,61 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
                         sx={{ bgcolor: option.color, color: 'white', width: 70, fontWeight: 500, borderRadius: 1 }}
                       />
                       <Typography variant="body2">{option.name}</Typography>
+                    </Box>
+                  </li>
+                )}
+              />
+            )
+          )}
+
+          {allCollections.length > 0 && (
+            isMobile ? (
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Коллекции
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+                  {allCollections.map(coll => {
+                    const active = selectedCollectionIds.includes(coll.id);
+                    return (
+                      <Chip
+                        key={coll.id}
+                        label={coll.title}
+                        size="small"
+                        icon={<FolderIcon sx={{ fontSize: 14, color: active ? 'white' : 'primary.main' }} />}
+                        clickable
+                        onClick={() => setSelectedCollectionIds(prev =>
+                          active ? prev.filter(c => c !== coll.id) : [...prev, coll.id]
+                        )}
+                        variant={active ? 'filled' : 'outlined'}
+                        sx={{
+                          bgcolor: active ? 'primary.main' : 'transparent',
+                          color: active ? 'white' : 'text.primary',
+                          fontWeight: active ? 600 : 400,
+                          borderColor: 'primary.main',
+                          borderRadius: 2,
+                          transition: 'all 0.15s',
+                        }}
+                      />
+                    );
+                  })}
+                </Box>
+              </Box>
+            ) : (
+              <Autocomplete
+                multiple
+                options={allCollections}
+                getOptionLabel={(c) => c.title}
+                value={allCollections.filter(c => selectedCollectionIds.includes(c.id))}
+                onChange={(_, vals) => setSelectedCollectionIds(vals.map(v => v.id))}
+                renderInput={(params) => (
+                  <TextField {...params} label="Коллекции" size="small" placeholder="Выберите коллекции" />
+                )}
+                renderOption={(props, option, { selected }) => (
+                  <li {...props}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <FolderIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                      <Typography variant="body2">{option.title}</Typography>
                     </Box>
                   </li>
                 )}

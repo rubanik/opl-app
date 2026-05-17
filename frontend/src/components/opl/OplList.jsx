@@ -459,24 +459,22 @@ export default function OplList() {
               user={user}
             />
           ))
+        ) : (fetchError || collectionError) ? (
+          <EmptyState
+            title={'Ошибка загрузки'}
+            description={fetchError || collectionError}
+            actionLabel={'Повторить'}
+            onAction={() => { setFetchError(null); fetchOpls(); }}
+            icon={<DescriptionIcon sx={{ fontSize: 48, color: 'error' }} />}
+          />
         ) : (
-          {(fetchError || collectionError) ? (
-            <EmptyState
-              title={'Ошибка загрузки'}
-              description={fetchError || collectionError}
-              actionLabel={'Повторить'}
-              onAction={() => { setFetchError(null); fetchOpls(); }}
-              icon={<DescriptionIcon sx={{ fontSize: 48, color: 'error' }} />}
-            />
-          ) : (
-            <EmptyState
-              title={searchQuery ? 'Ничего не найдено' : (isCollectionMode ? 'Коллекция пуста' : 'Пока нет инструкций')}
-              description={searchQuery ? 'Попробуйте изменить запрос' : (isCollectionMode ? 'Добавьте инструкции в эту коллекцию' : 'Создайте первую инструкцию OPL')}
-              actionLabel={user ? (isCollectionMode ? 'Создать' : 'Создать') : undefined}
-              onAction={user ? () => setNewOpen(true) : undefined}
-              icon={<DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
-            />
-          )}
+          <EmptyState
+            title={searchQuery ? 'Ничего не найдено' : (isCollectionMode ? 'Коллекция пуста' : 'Пока нет инструкций')}
+            description={searchQuery ? 'Попробуйте изменить запрос' : (isCollectionMode ? 'Добавьте инструкции в эту коллекцию' : 'Создайте первую инструкцию OPL')}
+            actionLabel={user ? (isCollectionMode ? 'Создать' : 'Создать') : undefined}
+            onAction={user ? () => setNewOpen(true) : undefined}
+            icon={<DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
+          />
         )}
       </Stack>
 

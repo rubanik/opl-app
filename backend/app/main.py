@@ -67,6 +67,13 @@ def init_db():
         migrate_photos_s3()
     except Exception:
         pass
+    # Collections tables
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("ALTER TABLE opl_tags ADD COLUMN collection_id UUID REFERENCES opl_collections(id) ON DELETE SET NULL"))
+            conn.commit()
+    except Exception:
+        pass
 
 
 def create_app(init: bool = True) -> FastAPI:

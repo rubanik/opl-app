@@ -82,3 +82,13 @@ def sample_image_bytes():
     img.save(buf, format="JPEG")
     buf.seek(0)
     return buf.read()
+
+
+@pytest.fixture
+def test_collection(db_session):
+    from app.models.opl import OplCollection
+    coll = OplCollection(id=uuid.uuid4(), title="Test Collection", description="For tests")
+    db_session.add(coll)
+    db_session.commit()
+    db_session.refresh(coll)
+    return coll

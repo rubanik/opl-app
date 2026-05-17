@@ -69,6 +69,12 @@ class OplTagCreate(BaseModel):
     color: str = "#1976d2"
 
 
+class OplTagCreateInput(BaseModel):
+    """Same as OplTagCreate but used for collection-scoped tag creation"""
+    name: str = Field(..., min_length=1, max_length=100)
+    color: str = "#1976d2"
+
+
 class OplTagLinkCreate(BaseModel):
     tag_ids: list[uuid.UUID]
 
@@ -125,5 +131,57 @@ class OplListOut(BaseModel):
     @property
     def description_html(self) -> Optional[str]:
         return render_markdown(self.description)
+
+    model_config = {"from_attributes": True}
+
+
+# --- Collection schemas ---
+
+class OplCollectionCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
+class OplCollectionUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+
+
+class OplCollectionOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True}
+
+
+class OplCollectionItemOut(BaseModel):
+    """Single OPL inside a collection (compact)"""
+    id: uuid.UUID
+    title: str
+
+    model_config = {"from_attributes": True}
+
+
+class OplCollectionDetailOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    items: list[OplCollectionItemOut] = []
+
+    model_config = {"from_attributes": True}
+
+
+class OplCollectionLinkCreate(BaseModel):
+    opl_id: uuid.UUID
+
+
+class OplCollectionLinkOut(BaseModel):
+    opl_id: uuid.UUID
+    collection_id: uuid.UUID
 
     model_config = {"from_attributes": True}

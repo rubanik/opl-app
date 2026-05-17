@@ -13,6 +13,7 @@ import {
   createTheme,
 } from '@mui/material';
 import { HeaderUserArea } from '../auth/AuthProvider';
+import CollectionSelector from '../collections/CollectionSelector';
 
 const theme = createTheme({
   palette: {
@@ -71,6 +72,7 @@ export default function AppLayout({ children, welcomeToast, setWelcomeToast }) {
           >
             OPL Инструкции
           </Typography>
+          <CollectionSelector isMobile={isMobile} />
           <HeaderUserArea />
         </Toolbar>
       </AppBar>

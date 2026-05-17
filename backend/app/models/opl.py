@@ -86,6 +86,31 @@ class OplTag(Base):
     id = Column(UUID(), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     color = Column(String(7), default="#1976d2")
+    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="SET NULL"), nullable=True)
+
+
+class OplCollection(Base):
+    __tablename__ = "opl_collections"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    links = relationship(
+        "OplCollectionLink", back_populates="collection", cascade="all, delete-orphan"
+    )
+
+
+class OplCollectionLink(Base):
+    __tablename__ = "opl_collection_links"
+
+    opl_id = Column(UUID(), ForeignKey("opls.id", ondelete="CASCADE"), primary_key=True)
+    collection_id = Column(UUID(), ForeignKey("opl_collections.id", ondelete="CASCADE"), primary_key=True)
+
+    opl = relationship("Opl", back_populates="collection_links")
+    collection = relationship("OplCollection", back_populates="links")
 
 
 class OplTagLink(Base):
@@ -112,4 +137,9 @@ OplTagLink.opl = relationship(
 )
 OplTagLink.tag = relationship(
     "OplTag", back_populates="opl_links"
+)
+
+# --- Collection relationships ---
+Opl.collection_links = relationship(
+    "OplCollectionLink", back_populates="opl", cascade="all, delete-orphan"
 )

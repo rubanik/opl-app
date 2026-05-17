@@ -18,13 +18,15 @@ import ConfirmDialog from '../common/ConfirmDialog';
 
 const API = '/api';
 
-export default function TagManagerDialog({ open, onClose, onUpdate }) {
+export default function TagManagerDialog({ open, onClose, onUpdate, isCollectionMode, collectionId }) {
   const [tags, setTags] = useState([]);
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#1976d2');
   const [confirm, setConfirm] = useState({ open: false, tagId: null });
 
-  const tagsUrl = `${API}/opls/tags`;
+  const tagsUrl = isCollectionMode
+    ? `${API}/collections/${collectionId}/tags`
+    : `${API}/opls/tags`;
 
   useEffect(() => {
     if (open) {
@@ -52,7 +54,10 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
 
   const confirmRemove = async () => {
     if (!confirm.tagId) return;
-    await fetch(`${API}/opls/tags/${confirm.tagId}`, { method: 'DELETE' });
+    const url = isCollectionMode
+      ? `${API}/collections/${collectionId}/tags/${confirm.tagId}`
+      : `${API}/opls/tags/${confirm.tagId}`;
+    await fetch(url, { method: 'DELETE' });
     fetch(tagsUrl).then(r => r.json()).then(setTags);
     onUpdate();
     setConfirm({ open: false, tagId: null });
@@ -62,7 +67,7 @@ export default function TagManagerDialog({ open, onClose, onUpdate }) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Управление тегами</DialogTitle>
+      <DialogTitle>{isCollectionMode ? 'Теги коллекции' : 'Управление тегами'}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 1 }}>
           <Box sx={{ display: 'flex', gap: 1 }}>

@@ -41,6 +41,7 @@ import EmptyState from '../common/EmptyState';
 import { ListSkeleton } from '../common/LoadingSkeleton';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../../hooks/useApi';
+import { useCollection } from '../collections/CollectionContext';
 
 const API = '/api';
 const APP_URL = window.location.origin;
@@ -67,7 +68,11 @@ export default function OplList() {
   const undoIntervalRef = useRef(null);
   const { user, checkAuth } = useAuth();
   const { del: apiDelete, toast: apiToast, setToast: setApiToast } = useApi();
+  const { activeCollectionId, addOplToCollection } = useCollection();
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  // Determine if we're in collection mode
+  const isCollectionMode = !!activeCollectionId;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -88,9 +93,13 @@ export default function OplList() {
     if (ids.length) setSelectedTagIds(ids);
   }, [allTags]);
 
+  // Fetch tags: collection-scoped or global
   useEffect(() => {
-    fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
-  }, []);
+    const tagsUrl = isCollectionMode
+      ? `${API}/collections/${activeCollectionId}/tags`
+      : `${API}/opls/tags`;
+    fetch(tagsUrl).then(r => r.json()).then(setAllTags);
+  }, [isCollectionMode, activeCollectionId]);
 
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
@@ -104,7 +113,11 @@ export default function OplList() {
     }
     params.set('skip', String((currentPage - 1) * ITEMS_PER_PAGE));
     params.set('limit', String(ITEMS_PER_PAGE));
-    const res = await fetch(`${API}/opls/?${params.toString()}`);
+
+    const baseUrl = isCollectionMode
+      ? `${API}/collections/${activeCollectionId}/opls-list`
+      : `${API}/opls/`;
+    const res = await fetch(`${baseUrl}?${params.toString()}`);
     let data = await res.json();
     setTotal(data.total);
     let items = data.items;
@@ -117,7 +130,7 @@ export default function OplList() {
     }
     setOpls(items);
     setLoading(false);
-  }, [selectedTagIds, sortBy, currentPage]);
+  }, [selectedTagIds, sortBy, currentPage, isCollectionMode, activeCollectionId]);
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
@@ -219,6 +232,15 @@ export default function OplList() {
   };
 
   const handleCreate = async (createdOpl, stepPhotos, selectedTags) => {
+    // Auto-add to active collection if in collection mode
+    if (isCollectionMode) {
+      try {
+        await addOplToCollection(activeCollectionId, createdOpl.id);
+      } catch (e) {
+        console.error('Failed to add OPL to collection:', e);
+      }
+    }
+
     if (selectedTags?.length) {
       await fetch(`${API}/opls/${createdOpl.id}/tags`, {
         method: 'POST',
@@ -253,7 +275,7 @@ export default function OplList() {
         }}>
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-              Инструкции OPL
+              {isCollectionMode ? `Коллекция` : 'Инструкции OPL'}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
@@ -298,7 +320,7 @@ export default function OplList() {
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Box>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                Инструкции OPL
+                {isCollectionMode ? 'Коллекция' : 'Инструкции OPL'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 {total} {getPluralWord(total, 'инструкция', 'инструкции', 'инструкций')}
@@ -426,9 +448,9 @@ export default function OplList() {
           ))
         ) : (
           <EmptyState
-            title={searchQuery ? 'Ничего не найдено' : 'Пока нет инструкций'}
-            description={searchQuery ? 'Попробуйте изменить запрос' : 'Создайте первую инструкцию OPL'}
-            actionLabel={user ? 'Создать' : undefined}
+            title={searchQuery ? 'Ничего не найдено' : (isCollectionMode ? 'Коллекция пуста' : 'Пока нет инструкций')}
+            description={searchQuery ? 'Попробуйте изменить запрос' : (isCollectionMode ? 'Добавьте инструкции в эту коллекцию' : 'Создайте первую инструкцию OPL')}
+            actionLabel={user ? (isCollectionMode ? 'Создать' : 'Создать') : undefined}
             onAction={user ? () => setNewOpen(true) : undefined}
             icon={<DescriptionIcon sx={{ fontSize: 48, color: 'text.disabled' }} />}
           />
@@ -469,9 +491,14 @@ export default function OplList() {
         open={tagManagerOpen}
         onClose={() => setTagManagerOpen(false)}
         onUpdate={() => {
-          fetch(`${API}/opls/tags`).then(r => r.json()).then(setAllTags);
+          const tagsUrl = isCollectionMode
+            ? `${API}/collections/${activeCollectionId}/tags`
+            : `${API}/opls/tags`;
+          fetch(tagsUrl).then(r => r.json()).then(setAllTags);
           fetchOpls();
         }}
+        isCollectionMode={isCollectionMode}
+        collectionId={activeCollectionId}
       />
       <ConfirmDialog
         open={deleteConfirm.open}

@@ -32,6 +32,10 @@ export default function AddToCollectionsDialog({ open, onClose, oplId }) {
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setSaving(false);
+    setAllCollections([]);
+    setCurrentIds([]);
+    setSelectedIds([]);
     Promise.all([
       fetch(`${API}/collections/`).then(r => r.json()),
       fetch(`${API}/opls/${oplId}/collections`).then(r => r.json()),

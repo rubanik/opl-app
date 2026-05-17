@@ -9,9 +9,9 @@ import OplList from './components/opl/OplList';
 import OplDetail from './components/opl/OplDetail';
 
 function AppInner() {
-  const { loading, welcomeToast, setWelcomeToast } = useAuth();
+  const { loading: authLoading, user, welcomeToast, setWelcomeToast } = useAuth();
 
-  if (loading) {
+  if (authLoading) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
@@ -20,19 +20,21 @@ function AppInner() {
   }
 
   return (
-    <AppLayout welcomeToast={welcomeToast} setWelcomeToast={setWelcomeToast}>
-      <Suspense fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
-          <CircularProgress />
-        </Box>
-      }>
-        <Routes>
-          <Route path="/" element={<OplList />} />
-          <Route path="/opl/:id" element={<OplDetail />} />
-        </Routes>
-      </Suspense>
-      <AuthDialog />
-    </AppLayout>
+    <CollectionProvider>
+      <AppLayout welcomeToast={welcomeToast} setWelcomeToast={setWelcomeToast}>
+        <Suspense fallback={
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        }>
+          <Routes>
+            <Route path="/" element={<OplList />} />
+            <Route path="/opl/:id" element={<OplDetail />} />
+          </Routes>
+        </Suspense>
+        <AuthDialog />
+      </AppLayout>
+    </CollectionProvider>
   );
 }
 
@@ -41,9 +43,7 @@ export default function App() {
     <BrowserRouter>
       <ThemeProvider theme={theme}>
         <AuthProvider>
-          <CollectionProvider>
-            <AppInner />
-          </CollectionProvider>
+          <AppInner />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

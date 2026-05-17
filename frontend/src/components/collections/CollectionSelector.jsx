@@ -21,9 +21,9 @@ import {
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import AddIcon from '@mui/icons-material/Add';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteIcon from '@mui/icons-material/Delete';
-import ListIcon from '@mui/icons-material/List';
+import ViewQuiltIcon from '@mui/icons-material/ViewQuilt';
+import EditIcon from '@mui/icons-material/Edit';
 
 import { useCollection } from '../collections/CollectionContext';
 import ConfirmDialog from '../common/ConfirmDialog';
@@ -94,12 +94,14 @@ export default function CollectionSelector({ isMobile }) {
     }
   };
 
+  const activeLabel = activeCollection?.title || 'Все инструкции';
+
   if (loading) return null;
 
   return (
     <>
       {!collections.length ? (
-        <Tooltip title='Создать первую коллекцию' arrow>
+        <Tooltip title='Создать коллекцию для группировки инструкций' arrow>
           <IconButton
             size='small'
             color='inherit'
@@ -111,13 +113,15 @@ export default function CollectionSelector({ isMobile }) {
       ) : (
         <>
           {isMobile ? (
-            <IconButton size='small' color='inherit' onClick={handleMenuOpen}>
-              {activeCollection ? <FolderOpenIcon /> : <FolderIcon />}
-            </IconButton>
+            <Tooltip title={activeLabel} arrow>
+              <IconButton size='small' color='inherit' onClick={handleMenuOpen}>
+                {activeCollection ? <FolderOpenIcon /> : <ViewQuiltIcon />}
+              </IconButton>
+            </Tooltip>
           ) : (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, cursor: 'pointer' }} onClick={handleMenuOpen}>
               <IconButton size='small' color='inherit' onClick={handleMenuOpen}>
-                {activeCollection ? <FolderOpenIcon /> : <FolderIcon />}
+                {activeCollection ? <FolderOpenIcon /> : <ViewQuiltIcon />}
               </IconButton>
               <Typography
                 variant='body2'
@@ -129,7 +133,7 @@ export default function CollectionSelector({ isMobile }) {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {activeCollection?.title || 'Все инструкции'}
+                {activeLabel}
               </Typography>
             </Box>
           )}
@@ -141,13 +145,19 @@ export default function CollectionSelector({ isMobile }) {
                 switchCollection(null);
                 handleMenuClose();
               }}
-              sx={{ fontSize: '0.875rem', justifyContent: 'space-between' }}
+              sx={{
+                fontSize: '0.875rem',
+                justifyContent: 'space-between',
+                fontWeight: !activeCollectionId ? 600 : 400,
+                bgcolor: !activeCollectionId ? 'action.selected' : 'transparent',
+              }}
             >
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <ListIcon fontSize='small' color={!activeCollectionId ? 'primary' : 'disabled'} />
+                <ViewQuiltIcon fontSize='small' color={!activeCollectionId ? 'primary' : 'disabled'} />
                 <Typography variant='body2'>Все инструкции</Typography>
               </Box>
             </MenuItem>
+            <Divider sx={{ my: 0.5 }} />
             {collections.map((coll) => (
               <MenuItem
                 key={coll.id}
@@ -159,32 +169,60 @@ export default function CollectionSelector({ isMobile }) {
                 sx={{
                   fontSize: '0.875rem',
                   justifyContent: 'space-between',
+                  pl: 2,
+                  pr: 1,
+                  py: 0.75,
                 }}
               >
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, minWidth: 0 }}>
                   {coll.id === activeCollection?.id ? (
                     <FolderOpenIcon fontSize='small' color='primary' />
                   ) : (
                     <FolderIcon fontSize='small' color='disabled' />
                   )}
-                  <Typography variant='body2'>{coll.title}</Typography>
+                  <Typography
+                    variant='body2'
+                    sx={{
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {coll.title}
+                  </Typography>
                 </Box>
-                <IconButton
-                  size='small'
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditOpen({
-                      id: coll.id,
-                      title: coll.title,
-                      description: coll.description,
-                    });
-                  }}
-                >
-                  <MoreVertIcon fontSize='small' />
-                </IconButton>
+                <Box sx={{ display: 'flex', gap: 0 }}>
+                  <Tooltip title='Редактировать' arrow>
+                    <IconButton
+                      size='small'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditOpen({
+                          id: coll.id,
+                          title: coll.title,
+                          description: coll.description,
+                        });
+                      }}
+                    >
+                      <EditIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title='Удалить' arrow>
+                    <IconButton
+                      size='small'
+                      color='error'
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteConfirm(coll.id);
+                      }}
+                    >
+                      <DeleteIcon fontSize='small' />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
               </MenuItem>
             ))}
-            <Divider />
+            <Divider sx={{ my: 0.5 }} />
             <MenuItem onClick={() => setNewOpen(true)}>
               <ListItemIcon><AddIcon fontSize='small' /></ListItemIcon>
               <ListItemText primary='Новая коллекция' primaryTypographyProps={{ variant: 'body2' }} />
@@ -256,17 +294,6 @@ export default function CollectionSelector({ isMobile }) {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-          <Button
-            color='error'
-            onClick={() => {
-              setDeleteConfirm(editOpen?.id);
-              setEditOpen(null);
-            }}
-            startIcon={<DeleteIcon />}
-          >
-            Удалить
-          </Button>
-          <Box sx={{ flex: 1 }} />
           <Button onClick={() => setEditOpen(null)}>Отмена</Button>
           <Button
             variant='contained'

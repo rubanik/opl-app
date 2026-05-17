@@ -76,7 +76,7 @@ export default function AppLayout({ children, welcomeToast, setWelcomeToast }) {
       </AppBar>
 
       <Box sx={{
-        pt: 8,
+        pt: { xs: 10, sm: 12 },
         pb: 3,
         px: { xs: 1.5, sm: 3 },
         maxWidth: '1200px',

@@ -52,23 +52,28 @@ export default function AddToCollectionsDialog({ open, onClose, oplId }) {
 
   const handleSave = async () => {
     setSaving(true);
-    const toAdd = selectedIds.filter(id => !currentIds.includes(id));
-    const toRemove = currentIds.filter(id => !selectedIds.includes(id));
+    try {
+      const toAdd = selectedIds.filter(id => !currentIds.includes(id));
+      const toRemove = currentIds.filter(id => !selectedIds.includes(id));
 
-    const removes = toRemove.map(cid =>
-      fetch(`${API}/opls/${oplId}/collections/${cid}`, { method: 'DELETE' })
-    );
-    if (toAdd.length) {
-      removes.push(
-        fetch(`${API}/opls/${oplId}/collections`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ collection_ids: toAdd }),
-        })
+      const requests = toRemove.map(cid =>
+        fetch(`${API}/opls/${oplId}/collections/${cid}`, { method: 'DELETE' })
       );
+      if (toAdd.length) {
+        requests.push(
+          fetch(`${API}/opls/${oplId}/collections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ collection_ids: toAdd }),
+          })
+        );
+      }
+      await Promise.all(requests);
+      onClose();
+    } catch (e) {
+      console.error('Failed to update collections:', e);
+      setSaving(false);
     }
-    await Promise.all(removes);
-    onClose();
   };
 
   return (

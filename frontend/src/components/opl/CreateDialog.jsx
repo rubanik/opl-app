@@ -30,7 +30,7 @@ import FolderIcon from '@mui/icons-material/Folder';
 
 const API = '/api';
 
-export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = [], collections: allCollections = [] }) {
+export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = [], collections: allCollections = [], isCollectionMode = false, activeCollectionId = null }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [steps, setSteps] = useState([
@@ -40,6 +40,23 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
   const [selectedCollectionIds, setSelectedCollectionIds] = useState([]);
   const [saving, setSaving] = useState(false);
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  // Reset state on open, pre-select active collection when in collection mode
+  useEffect(() => {
+    if (!open) return;
+    setTitle('');
+    setDescription('');
+    setSelectedTags([]);
+    setSteps([
+      { step_number: 1, title: '', description: '', duration_sec: 0, photos: [] },
+    ]);
+    setSaving(false);
+    if (isCollectionMode && activeCollectionId) {
+      setSelectedCollectionIds([activeCollectionId]);
+    } else {
+      setSelectedCollectionIds([]);
+    }
+  }, [open, isCollectionMode, activeCollectionId]);
 
   const updateStep = (idx, field, value) => {
     const next = [...steps];
@@ -103,6 +120,10 @@ export default function CreateDialog({ open, onClose, onSubmit, tags: allTags = 
   const totalDuration = steps.reduce((acc, s) => acc + (s.duration_sec || 0), 0);
 
   const handleSave = async () => {
+    if (!isCollectionMode && selectedCollectionIds.length === 0) {
+      alert('Выберите хотя бы одну коллекцию');
+      return;
+    }
     setSaving(true);
     const payload = {
       title,

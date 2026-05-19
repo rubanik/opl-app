@@ -110,11 +110,12 @@ export default function OplList() {
 
   // Fetch all collections
   useEffect(() => {
+    if (!user) return;
     fetch(`${API}/collections/`)
       .then(r => { if (!r.ok) throw new Error(`Collections error ${r.status}`); return r.json(); })
       .then(setAllCollections)
       .catch((e) => console.error('Failed to fetch collections:', e));
-  }, []);
+  }, [user]);
 
   const fetchOpls = useCallback(async (query) => {
     setLoading(true);
@@ -158,7 +159,17 @@ export default function OplList() {
 
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
 
-  useEffect(() => { fetchOpls(); }, [fetchOpls]);
+  useEffect(() => {
+    fetchOpls();
+  }, [fetchOpls]);
+
+  // Reset error state and re-fetch when user changes (after login)
+  useEffect(() => {
+    if (user) {
+      setFetchError(null);
+      fetchOpls();
+    }
+  }, [user]);
   useEffect(() => { setCurrentPage(1); }, [selectedTagIds, sortBy, searchQuery]);
 
   const hasActiveFilters = selectedTagIds.length > 0 || debouncedQuery;
@@ -518,6 +529,8 @@ export default function OplList() {
         onSubmit={handleCreate}
         tags={allTags}
         collections={allCollections}
+        isCollectionMode={isCollectionMode}
+        activeCollectionId={activeCollectionId}
       />
       <AddToCollectionsDialog
         open={!!manageCollectionsOplId}

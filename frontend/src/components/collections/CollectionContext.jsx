@@ -1,17 +1,21 @@
 import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
+import { useAuth } from '../auth/AuthProvider';
 
 const API = '/api';
 
 const CollectionContext = createContext(null);
 
 export function CollectionProvider({ children, onError }) {
+  const { loading: authLoading, user } = useAuth();
   const [collections, setCollections] = useState([]);
   const [activeCollectionId, setActiveCollectionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchCollections = useCallback(async () => {
+    if (authLoading) return;
     try {
+      setLoading(true);
       const res = await fetch(API + '/collections/');
       if (!res.ok) throw new Error('Failed to fetch collections');
       const data = await res.json();
@@ -24,17 +28,25 @@ export function CollectionProvider({ children, onError }) {
           setActiveCollectionId(stored);
         }
       }
+      setError(null);
     } catch (e) {
       setError(e.message);
       if (onError) onError(e.message);
     } finally {
       setLoading(false);
     }
-  }, [onError]);
+  }, [authLoading, onError]);
 
   useEffect(() => {
     fetchCollections();
   }, [fetchCollections]);
+
+  // Re-fetch when user changes (after login/logout)
+  useEffect(() => {
+    if (user) {
+      fetchCollections();
+    }
+  }, [user]);
 
   const switchCollection = useCallback((id) => {
     setActiveCollectionId(id || null);

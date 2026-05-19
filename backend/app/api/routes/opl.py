@@ -17,7 +17,7 @@ from app.models.user import User
 from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplBulkCollectionLinkCreate, OplCollectionOut
 from app.models.opl import OplCollection, OplCollectionLink
 from app.services.collections import get_opl_collections, add_opl_to_collections, remove_opl_from_collection
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_current_user_optional
 import qrcode
 
 router = APIRouter(prefix="/api/opls", tags=["opl"])
@@ -31,7 +31,7 @@ def list_opls(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _user: User | None = Depends(get_current_user),
+    _user: User | None = Depends(get_current_user_optional),
 ):
     stmt = select(Opl)
     conditions = []
@@ -256,9 +256,15 @@ def replace_photo(
 
 @router.get("/tags", response_model=list[OplTagOut])
 def list_tags(
+    collection_id: uuid.UUID | None = Query(None),
     db: Session = Depends(get_db),
 ):
-    stmt = select(OplTag).order_by(OplTag.name)
+    stmt = select(OplTag)
+    if collection_id is not None:
+        stmt = stmt.where(OplTag.collection_id == collection_id)
+    else:
+        stmt = stmt.where(OplTag.collection_id.is_(None))
+    stmt = stmt.order_by(OplTag.name)
     return db.execute(stmt).scalars().all()
 
 

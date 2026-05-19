@@ -187,3 +187,21 @@ def get_current_user(
             detail="Пользователь не найден",
         )
     return user
+
+
+def get_current_user_optional(
+    access_token: str | None = Cookie(default=None),
+    db=Depends(get_db),
+) -> User | None:
+    if not access_token:
+        return None
+    try:
+        payload = decode_token(access_token)
+        if payload.get("type") != "access":
+            return None
+        user_id = payload.get("sub")
+        if not user_id:
+            return None
+        return db.get(User, uuid.UUID(user_id))
+    except HTTPException:
+        return None

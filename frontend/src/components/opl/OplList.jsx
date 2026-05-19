@@ -108,9 +108,8 @@ export default function OplList() {
       .catch((e) => console.error('Failed to fetch tags:', e));
   }, [isCollectionMode, activeCollectionId]);
 
-  // Fetch all collections
+  // Fetch all collections (available without auth)
   useEffect(() => {
-    if (!user) return;
     fetch(`${API}/collections/`)
       .then(r => { if (!r.ok) throw new Error(`Collections error ${r.status}`); return r.json(); })
       .then(setAllCollections)

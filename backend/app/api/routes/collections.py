@@ -15,7 +15,7 @@ from app.schemas.opl import (
     OplCollectionLinkOut,
     OplListOut, OplTagOut, OplTagCreate, AuthorOut,
 )
-from app.services.auth import get_current_user
+from app.services.auth import get_current_user, get_current_user_optional
 from app.services.collections import (
     list_collections, get_collection, create_collection,
     update_collection, delete_collection,
@@ -30,7 +30,7 @@ router = APIRouter(prefix='/api/collections', tags=['collections'])
 @router.get('/')
 def list_colls(
     db: Session = Depends(get_db),
-    _user: User | None = Depends(get_current_user),
+    _user: User | None = Depends(get_current_user_optional),
 ):
     colls = list_collections(db)
     return [OplCollectionOut.model_validate(c) for c in colls]
@@ -53,7 +53,7 @@ def get_coll(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _user: User | None = Depends(get_current_user),
+    _user: User | None = Depends(get_current_user_optional),
 ):
     coll = get_collection(db, collection_id)
     if not coll:
@@ -169,7 +169,7 @@ def list_opls_in_collection(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    _user: User | None = Depends(get_current_user),
+    _user: User | None = Depends(get_current_user_optional),
 ):
     coll = get_collection(db, collection_id)
     if not coll:
@@ -207,7 +207,7 @@ def list_opls_in_collection(
 def list_tags_in_collection(
     collection_id: uuid.UUID,
     db: Session = Depends(get_db),
-    _user: User | None = Depends(get_current_user),
+    _user: User | None = Depends(get_current_user_optional),
 ):
     coll = get_collection(db, collection_id)
     if not coll:

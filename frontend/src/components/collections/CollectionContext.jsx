@@ -6,14 +6,13 @@ const API = '/api';
 const CollectionContext = createContext(null);
 
 export function CollectionProvider({ children, onError }) {
-  const { loading: authLoading, user } = useAuth();
+  const { user } = useAuth();
   const [collections, setCollections] = useState([]);
   const [activeCollectionId, setActiveCollectionId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchCollections = useCallback(async () => {
-    if (authLoading) return;
     try {
       setLoading(true);
       const res = await fetch(API + '/collections/');
@@ -35,13 +34,13 @@ export function CollectionProvider({ children, onError }) {
     } finally {
       setLoading(false);
     }
-  }, [authLoading, onError]);
+  }, [onError]);
 
   useEffect(() => {
     fetchCollections();
   }, [fetchCollections]);
 
-  // Re-fetch when user changes (after login/logout)
+  // Re-fetch when user changes (after login)
   useEffect(() => {
     if (user) {
       fetchCollections();

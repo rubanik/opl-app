@@ -20,7 +20,7 @@ def list_opl_comments(db: Session, opl_id: uuid.UUID) -> list[Comment]:
         select(Comment)
         .where(Comment.opl_id == opl_id)
         .options(joinedload(Comment.author))
-        .order_by(Comment.created_at.asc())
+        .order_by(Comment.created_at.desc())
     )
     return db.execute(stmt).scalars().unique().all()
 

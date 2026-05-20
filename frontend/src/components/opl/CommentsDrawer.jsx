@@ -9,11 +9,8 @@ import {
   List,
   ListItem,
   ListItemAvatar,
-  ListItemText,
-  ListItemSecondaryAction,
   Divider,
   Tooltip,
-  Button,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
@@ -199,7 +196,7 @@ export default function CommentsDrawer({ open, onClose, oplId, commentCount }) {
                       </ListItem>
                     ) : (
                       <ListItem sx={{ px: 2, py: 1.5 }}>
-                        <ListItemAvatar>
+                        <ListItemAvatar sx={{ mr: 1.5 }}>
                           <Avatar sx={{ width: 30, height: 30, fontSize: '0.7rem', bgcolor: 'grey.300', color: 'grey.700' }}>
                             {getAuthorInitials(c.author)}
                           </Avatar>
@@ -213,24 +210,24 @@ export default function CommentsDrawer({ open, onClose, oplId, commentCount }) {
                               {formatTime(c.created_at)}
                             </Typography>
                           </Box>
-                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                          <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', mb: user && user.id === c.user_id ? 0.5 : 0 }}>
                             {c.text}
                           </Typography>
+                          {user && user.id === c.user_id && (
+                            <Box sx={{ display: 'flex', gap: 0.25, mt: 0.5 }}>
+                              <Tooltip title="Редактировать" placement="top">
+                                <IconButton size="small" onClick={() => startEdit(c)} sx={{ padding: 2 }}>
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Удалить" placement="top">
+                                <IconButton size="small" onClick={() => setDeleteTarget(c.id)} sx={{ padding: 2, color: 'error.main' }}>
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          )}
                         </Box>
-                        {user && user.id === c.user_id && (
-                          <ListItemSecondaryAction sx={{ ml: 1 }}>
-                            <Tooltip title="Редактировать">
-                              <IconButton size="small" onClick={() => startEdit(c)}>
-                                <EditIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Удалить">
-                              <IconButton size="small" onClick={() => setDeleteTarget(c.id)} sx={{ color: 'error.main' }}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                          </ListItemSecondaryAction>
-                        )}
                       </ListItem>
                     )}
                   </React.Fragment>

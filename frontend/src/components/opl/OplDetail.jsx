@@ -45,6 +45,7 @@ import CodeIcon from '@mui/icons-material/Code';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TagIcon from '@mui/icons-material/Tag';
 import CommentIcon from '@mui/icons-material/Comment';
+import Badge from '@mui/material/Badge';
 import { QRCodeSVG } from 'qrcode.react';
 
 import PhotoCarousel from './PhotoCarousel';
@@ -632,8 +633,16 @@ export default function OplDetail() {
         </Typography>
         <Stack direction="row" spacing={0.5}>
           <Tooltip title="Комментарии" arrow>
-            <IconButton size="small" onClick={() => setCommentsOpen(true)}>
-              <CommentIcon />
+            <IconButton
+              size="small"
+              onClick={() => setCommentsOpen(true)}
+              sx={(theme) => ({
+                color: (opl.comment_count || 0) > 0 ? theme.palette.primary.main : 'inherit',
+              })}
+            >
+              <Badge badgeContent={opl.comment_count || 0} color="primary" sx={{ transform: 'scale(0.7)', transformOrigin: 'top right' }}>
+                <CommentIcon />
+              </Badge>
             </IconButton>
           </Tooltip>
           <Tooltip title="Скачать PDF" arrow>

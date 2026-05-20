@@ -44,9 +44,11 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import CodeIcon from '@mui/icons-material/Code';
 import DescriptionIcon from '@mui/icons-material/Description';
 import TagIcon from '@mui/icons-material/Tag';
+import CommentIcon from '@mui/icons-material/Comment';
 import { QRCodeSVG } from 'qrcode.react';
 
 import PhotoCarousel from './PhotoCarousel';
+import CommentsDrawer from './CommentsDrawer';
 import ConfirmDialog from '../common/ConfirmDialog';
 import { useAuth } from '../auth/AuthProvider';
 import { useApi } from '../../hooks/useApi';
@@ -70,6 +72,7 @@ export default function OplDetail() {
   const [snack, setSnack] = useState({ open: false, msg: '', severity: 'success' });
   const [confirm, setConfirm] = useState({ open: false, stepId: null, photoId: null });
   const [deleteOplConfirm, setDeleteOplConfirm] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(-1);
   const [draggedIdx, setDraggedIdx] = useState(null);
   const stepsRefs = useRef([]);
@@ -628,6 +631,11 @@ export default function OplDetail() {
           {opl.title}
         </Typography>
         <Stack direction="row" spacing={0.5}>
+          <Tooltip title="Комментарии" arrow>
+            <IconButton size="small" onClick={() => setCommentsOpen(true)}>
+              <CommentIcon />
+            </IconButton>
+          </Tooltip>
           <Tooltip title="Скачать PDF" arrow>
             <IconButton size="small" onClick={() => window.open(`${API}/opls/${id}/pdf`, '_blank')}>
               <PictureAsPdfIcon />
@@ -676,6 +684,15 @@ export default function OplDetail() {
           label={`${opl.steps.length} ${getStepWord(opl.steps.length)}`}
           size="small"
           variant="outlined"
+        />
+        <Chip
+          icon={<CommentIcon sx={{ fontSize: 14 }} />}
+          label={opl.comment_count || 0}
+          size="small"
+          variant="outlined"
+          clickable
+          onClick={() => setCommentsOpen(true)}
+          sx={{ cursor: 'pointer' }}
         />
         {opl.author && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -874,6 +891,13 @@ export default function OplDetail() {
           {apiToast.msg}
         </Alert>
       </Snackbar>
+
+      <CommentsDrawer
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        oplId={id}
+        commentCount={opl.comment_count || 0}
+      />
     </Box>
   );
 }

@@ -19,6 +19,7 @@ import StepIcon from '@mui/icons-material/MenuBook';
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import FolderSpecialIcon from '@mui/icons-material/FolderSpecial';
+import CommentIcon from '@mui/icons-material/Comment';
 
 export default function OplCard({ opl, onDelete, onManageCollections, user }) {
   const navigate = useNavigate();
@@ -219,6 +220,15 @@ export default function OplCard({ opl, onDelete, onManageCollections, user }) {
                     size="small"
                     variant="outlined"
                     sx={{ fontSize: '0.7rem', height: 22, borderRadius: 1 }}
+                  />
+                )}
+                {(opl.comment_count || 0) > 0 && (
+                  <Chip
+                    icon={<CommentIcon sx={{ fontSize: 12 }} />}
+                    label={opl.comment_count}
+                    size="small"
+                    variant="outlined"
+                    sx={{ fontSize: '0.7rem', height: 22, borderRadius: 1, borderColor: '#90caf9', color: '#1565c0' }}
                   />
                 )}
               </Box>

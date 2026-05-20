@@ -27,3 +27,4 @@ class User(Base):
     last_login = Column(DateTime, nullable=True)
 
     opls = relationship("Opl", back_populates="author")
+    comments = relationship("Comment", back_populates="author")

@@ -141,3 +141,25 @@ OplTagLink.opl = relationship(
 OplTagLink.tag = relationship(
     "OplTag", back_populates="opl_links", overlaps="opls,tags"
 )
+
+
+class Comment(Base):
+    __tablename__ = "opl_comments"
+
+    id = Column(UUID(), primary_key=True, default=uuid.uuid4)
+    opl_id = Column(UUID(), ForeignKey("opls.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(UUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author = relationship("User", back_populates="comments")
+
+
+Opl.comments = relationship(
+    "Comment", back_populates="opl", cascade="all, delete-orphan"
+)
+Comment.opl = relationship(
+    "Opl", back_populates="comments"
+)
+

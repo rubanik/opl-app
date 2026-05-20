@@ -89,6 +89,7 @@ class OplOut(BaseModel):
     author: Optional[AuthorOut] = None
     steps: list[StepOut] = []
     tags: list[OplTagOut] = []
+    comment_count: int = 0
 
     @computed_field
     @property
@@ -118,6 +119,7 @@ class OplListOut(BaseModel):
     updated_at: Optional[datetime] = None
     step_count: int
     total_duration_sec: int = 0
+    comment_count: int = 0
     author: Optional[AuthorOut] = None
     tags: list[OplTagOut] = []
     collections: list[OplCollectionChipOut] = []
@@ -188,3 +190,25 @@ class OplCollectionLinkOut(BaseModel):
     collection_id: uuid.UUID
 
     model_config = {'from_attributes': True}
+
+
+# --- Comment schemas ---
+
+class CommentOut(BaseModel):
+    id: uuid.UUID
+    opl_id: uuid.UUID
+    user_id: uuid.UUID
+    text: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    author: Optional[AuthorOut] = None
+
+    model_config = {'from_attributes': True}
+
+
+class CommentCreate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=600)
+
+
+class CommentUpdate(BaseModel):
+    text: str = Field(..., min_length=1, max_length=600)

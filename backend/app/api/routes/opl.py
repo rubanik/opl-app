@@ -14,9 +14,10 @@ from app.core.config import settings
 from app.db.session import get_db
 from app.models.opl import Base, Opl, Step, Photo, OplTag, OplTagLink
 from app.models.user import User
-from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplBulkCollectionLinkCreate, OplCollectionOut
-from app.models.opl import OplCollection, OplCollectionLink
+from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplBulkCollectionLinkCreate, OplCollectionOut, CommentOut, CommentCreate, CommentUpdate
+from app.models.opl import OplCollection, OplCollectionLink, Comment
 from app.services.collections import get_opl_collections, add_opl_to_collections, remove_opl_from_collection
+from app.services.comments import get_opl_comment_count, list_opl_comments, create_comment, update_comment, delete_comment as delete_comment_service
 from app.services.auth import get_current_user, get_current_user_optional
 import qrcode
 
@@ -79,6 +80,12 @@ def list_opls(
             if coll:
                 collection_map.setdefault(link.opl_id, []).append({"id": coll.id, "title": coll.title})
     author_map = {}
+    comment_count_map = {}
+    if opl_ids:
+        for row in db.execute(
+            select(Comment.opl_id, func.count(Comment.id)).where(Comment.opl_id.in_(opl_ids)).group_by(Comment.opl_id)
+        ).all():
+            comment_count_map[row[0]] = row[1]
     if opl_ids:
         for opl_id in opl_ids:
             opl_row = db.get(Opl, opl_id)
@@ -98,6 +105,7 @@ def list_opls(
             created_at=r.created_at, updated_at=r.updated_at,
             step_count=step_counts.get(r.id, 0),
             total_duration_sec=duration_totals.get(r.id, 0),
+            comment_count=comment_count_map.get(r.id, 0),
             author=author_map.get(r.id),
             tags=tag_map.get(r.id, []),
             collections=collection_map.get(r.id, [])
@@ -301,6 +309,7 @@ def get_opl(opl_id: uuid.UUID, db: Session = Depends(get_db)):
     ).unique().scalar_one_or_none()
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
+    opl.comment_count = get_opl_comment_count(db, opl_id)
     return opl
 
 
@@ -487,3 +496,69 @@ def remove_opl_from_collection_route(
     db.commit()
     collections = get_opl_collections(db, opl_id)
     return {"ok": True, "collections": [{"id": c.id, "title": c.title} for c in collections]}
+
+
+# --- Comments ---
+
+@router.get("/{opl_id}/comments", response_model=list[CommentOut])
+def list_comments_route(
+    opl_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    return list_opl_comments(db, opl_id)
+
+
+@router.post("/{opl_id}/comments", response_model=CommentOut, status_code=201)
+def create_comment_route(
+    opl_id: uuid.UUID,
+    body: CommentCreate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    comment = create_comment(db, opl_id, _user.id, body.text)
+    db.commit()
+    db.refresh(comment)
+    comment.author = db.get(User, comment.user_id)
+    return comment
+
+
+@router.patch("/{opl_id}/comments/{comment_id}", response_model=CommentOut)
+def update_comment_route(
+    opl_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    body: CommentUpdate,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    comment = update_comment(db, comment_id, _user.id, body.text)
+    if not comment:
+        raise HTTPException(403, "Нет прав на редактирование этого комментария")
+    db.commit()
+    comment.author = db.get(User, comment.user_id)
+    return comment
+
+
+@router.delete("/{opl_id}/comments/{comment_id}")
+def delete_comment_route(
+    opl_id: uuid.UUID,
+    comment_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    _user: User = Depends(get_current_user),
+):
+    opl = db.get(Opl, opl_id)
+    if not opl:
+        raise HTTPException(404, "Инструкция не найдена")
+    ok = delete_comment_service(db, comment_id, _user.id)
+    if not ok:
+        raise HTTPException(404, "Комментарий не найден или нет прав на удаление")
+    db.commit()
+    return {"ok": True}

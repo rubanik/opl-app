@@ -17,7 +17,7 @@ from app.models.user import User
 from app.schemas.opl import OplCreate, OplOut, OplListOut, StepOut, StepCreate, PhotoOut, OplUpdate, StepUpdate, OplTagOut, OplTagCreate, OplTagLinkCreate, AuthorOut, OplBulkCollectionLinkCreate, OplCollectionOut, CommentOut, CommentCreate, CommentUpdate
 from app.models.opl import OplCollection, OplCollectionLink, Comment
 from app.services.collections import get_opl_collections, add_opl_to_collections, remove_opl_from_collection
-from app.services.comments import get_opl_comment_count, list_opl_comments, create_comment, update_comment, delete_comment as delete_comment_service
+from app.services.comments import get_opl_comment_count, list_opl_comments, create_comment, update_comment, delete_comment as delete_comment_service, mask_deleted_comments
 from app.services.auth import get_current_user, get_current_user_optional
 import qrcode
 
@@ -508,7 +508,8 @@ def list_comments_route(
     opl = db.get(Opl, opl_id)
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
-    return list_opl_comments(db, opl_id)
+    comments = list_opl_comments(db, opl_id)
+    return mask_deleted_comments(comments)
 
 
 @router.post("/{opl_id}/comments", response_model=CommentOut, status_code=201)
@@ -539,9 +540,9 @@ def update_comment_route(
     opl = db.get(Opl, opl_id)
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
-    comment = update_comment(db, comment_id, _user.id, body.text)
+    comment = update_comment(db, comment_id, opl_id, _user.id, body.text)
     if not comment:
-        raise HTTPException(403, "Нет прав на редактирование этого комментария")
+        raise HTTPException(404, "Комментарий не найден или нет прав на редактирование")
     db.commit()
     comment.author = db.get(User, comment.user_id)
     return comment
@@ -557,7 +558,7 @@ def delete_comment_route(
     opl = db.get(Opl, opl_id)
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
-    ok = delete_comment_service(db, comment_id, _user.id)
+    ok = delete_comment_service(db, comment_id, opl_id, _user.id)
     if not ok:
         raise HTTPException(404, "Комментарий не найден или нет прав на удаление")
     db.commit()

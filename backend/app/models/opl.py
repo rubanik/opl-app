@@ -152,6 +152,7 @@ class Comment(Base):
     text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    deleted_at = Column(DateTime, nullable=True)
 
     author = relationship("User", back_populates="comments")
 

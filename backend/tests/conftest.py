@@ -92,3 +92,45 @@ def test_collection(db_session):
     db_session.commit()
     db_session.refresh(coll)
     return coll
+
+
+@pytest.fixture
+def test_user2(db_session):
+    user = User(
+        id=uuid.uuid4(),
+        username="test2",
+        email="test2@test.local",
+        is_local=True,
+        password_hash="$2b$12$dummy2",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+@pytest.fixture
+def sample_opl(client):
+    resp = client.post("/api/opls/", json={
+        "title": "Test OPL",
+        "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+    })
+    assert resp.status_code == 201
+    return resp.json()
+
+
+@pytest.fixture
+def unauthenticated_client(db_session):
+    from app.main import create_app
+    from app.db.session import get_db
+    from fastapi.testclient import TestClient
+
+    app = create_app(init=False)
+
+    def override_get_db():
+        yield db_session
+
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()

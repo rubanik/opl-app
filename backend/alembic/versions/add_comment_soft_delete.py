@@ -1,0 +1,22 @@
+"""add deleted_at to opl_comments for soft delete
+
+Revision ID: add_comment_soft_delete
+Revises: add_opl_comments
+Create Date: 2026-05-25
+"""
+from alembic import op
+import sqlalchemy as sa
+
+
+revision = "add_comment_soft_delete"
+down_revision = "add_opl_comments"
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    op.add_column("opl_comments", sa.Column("deleted_at", sa.DateTime(), nullable=True))
+
+
+def downgrade():
+    op.drop_column("opl_comments", "deleted_at")

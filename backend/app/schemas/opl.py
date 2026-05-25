@@ -201,9 +201,15 @@ class CommentOut(BaseModel):
     text: str
     created_at: datetime
     updated_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
     author: Optional[AuthorOut] = None
 
     model_config = {'from_attributes': True}
+
+    @computed_field
+    @property
+    def is_deleted(self) -> bool:
+        return self.deleted_at is not None
 
 
 class CommentCreate(BaseModel):

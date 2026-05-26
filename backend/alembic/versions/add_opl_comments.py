@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 
 revision = "add_opl_comments"
-down_revision = None
+down_revision = "001_initial"
 branch_labels = None
 depends_on = None
 

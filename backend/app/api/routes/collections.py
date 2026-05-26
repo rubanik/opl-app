@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models.opl import OplCollectionLink, Opl
+from app.models.opl import OplCollectionLink, Opl, OplCollection
 from app.models.user import User
 from app.schemas.opl import (
     OplCollectionCreate, OplCollectionUpdate, OplCollectionOut,
@@ -112,9 +112,13 @@ def delete_coll(
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    ok = delete_collection(db, collection_id)
-    if not ok:
+    found, would_orphan = delete_collection(db, collection_id)
+    if not found:
         raise HTTPException(404, 'Коллекция не найдена')
+    if would_orphan:
+        raise HTTPException(400, 'Нельзя удалить коллекцию: некоторые инструкции останутся без коллекций')
+    db.delete(db.get(OplCollection, collection_id))
+    db.flush()
     db.commit()
     return {'ok': True}
 
@@ -151,9 +155,11 @@ def unlink_opl(
     db: Session = Depends(get_db),
     _user: User = Depends(get_current_user),
 ):
-    ok = remove_opl_from_collection(db, collection_id, opl_id)
-    if not ok:
+    found, is_last = remove_opl_from_collection(db, collection_id, opl_id)
+    if not found:
         raise HTTPException(404, 'Связь не найдена')
+    if is_last:
+        raise HTTPException(400, 'Нельзя убрать последнюю коллекцию у инструкции')
     db.commit()
     return {'ok': True}
 

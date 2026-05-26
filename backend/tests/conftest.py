@@ -110,10 +110,11 @@ def test_user2(db_session):
 
 
 @pytest.fixture
-def sample_opl(client):
+def sample_opl(client, test_collection):
     resp = client.post("/api/opls/", json={
         "title": "Test OPL",
         "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+        "collection_ids": [str(test_collection.id)],
     })
     assert resp.status_code == 201
     return resp.json()

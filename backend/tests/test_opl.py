@@ -11,7 +11,7 @@ import pytest
 # ========================
 
 class TestCreateOpl:
-    def test_create_opl_with_steps(self, client):
+    def test_create_opl_with_steps(self, client, test_collection):
         payload = {
             "title": "Тестовая инструкция",
             "description": "Описание",
@@ -21,6 +21,7 @@ class TestCreateOpl:
                 {"step_number": 3, "description": "Шаг 3", "duration_sec": 45},
                 {"step_number": 4, "description": "Шаг 4", "duration_sec": 15},
             ],
+            "collection_ids": [str(test_collection.id)],
         }
         resp = client.post("/api/opls/", json=payload)
         assert resp.status_code == 201
@@ -35,12 +36,13 @@ class TestCreateOpl:
         assert len(data["steps"][0]["photos"]) == 0
         assert "id" in data
 
-    def test_create_opl_minimal(self, client):
+    def test_create_opl_minimal(self, client, test_collection):
         payload = {
             "title": "Без описания",
             "steps": [
                 {"step_number": 1, "description": "Единственный шаг", "duration_sec": 0},
             ],
+            "collection_ids": [str(test_collection.id)],
         }
         resp = client.post("/api/opls/", json=payload)
         assert resp.status_code == 201
@@ -49,10 +51,11 @@ class TestCreateOpl:
         assert data["description"] is None
         assert len(data["steps"]) == 1
 
-    def test_create_opl_empty_title_rejected(self, client):
+    def test_create_opl_empty_title_rejected(self, client, test_collection):
         payload = {
             "title": "",
             "steps": [],
+            "collection_ids": [str(test_collection.id)],
         }
         resp = client.post("/api/opls/", json=payload)
         assert resp.status_code == 422
@@ -68,14 +71,16 @@ class TestListOpls:
         assert resp.status_code == 200
         assert resp.json()["items"] == []
 
-    def test_list_shows_created(self, client):
+    def test_list_shows_created(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "Первая",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         client.post("/api/opls/", json={
             "title": "Вторая",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/")
         assert resp.status_code == 200
@@ -91,13 +96,14 @@ class TestListOpls:
 # ========================
 
 class TestGetOpl:
-    def test_get_existing_opl(self, client):
+    def test_get_existing_opl(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "GET тест",
             "steps": [
                 {"step_number": 1, "description": "A", "duration_sec": 20},
                 {"step_number": 2, "description": "B", "duration_sec": 40},
             ],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.get(f"/api/opls/{opl_id}")
@@ -117,10 +123,11 @@ class TestGetOpl:
 # ========================
 
 class TestDeleteOpl:
-    def test_delete_existing(self, client):
+    def test_delete_existing(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "К удалению",
             "steps": [{"step_number": 1, "description": "x", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.delete(f"/api/opls/{opl_id}")
@@ -130,7 +137,7 @@ class TestDeleteOpl:
         assert client.get(f"/api/opls/{opl_id}").status_code == 404
         assert len(client.get("/api/opls/").json()["items"]) == 0
 
-    def test_delete_cascades_steps(self, client, db_session):
+    def test_delete_cascades_steps(self, client, db_session, test_collection):
         from app.models.opl import Step
         create_resp = client.post("/api/opls/", json={
             "title": "Cascade",
@@ -138,6 +145,7 @@ class TestDeleteOpl:
                 {"step_number": 1, "description": "s1", "duration_sec": 10},
                 {"step_number": 2, "description": "s2", "duration_sec": 20},
             ],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         client.delete(f"/api/opls/{opl_id}")
@@ -155,10 +163,11 @@ class TestDeleteOpl:
 # ========================
 
 class TestPhotoUpload:
-    def test_upload_photo(self, client, sample_image_bytes):
+    def test_upload_photo(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "Фото тест",
             "steps": [{"step_number": 1, "description": "Шаг с фото", "duration_sec": 30}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -173,10 +182,11 @@ class TestPhotoUpload:
         assert data["mime_type"] == "image/jpeg"
         assert data["display_order"] == 0
 
-    def test_photo_shows_in_opl_detail(self, client, sample_image_bytes):
+    def test_photo_shows_in_opl_detail(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "Фото в деталях",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -190,10 +200,11 @@ class TestPhotoUpload:
         detail = client.get(f"/api/opls/{opl_id}").json()
         assert len(detail["steps"][0]["photos"]) == 1
 
-    def test_upload_wrong_step(self, client, sample_image_bytes):
+    def test_upload_wrong_step(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         fake_step_id = str(uuid.uuid4())
@@ -205,10 +216,11 @@ class TestPhotoUpload:
             )
         assert resp.status_code == 404
 
-    def test_multiple_photos_same_step(self, client, sample_image_bytes):
+    def test_multiple_photos_same_step(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "Мульти фото",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -229,10 +241,11 @@ class TestPhotoUpload:
 # ========================
 
 class TestGetPhoto:
-    def test_retrieve_photo(self, client, sample_image_bytes):
+    def test_retrieve_photo(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -255,10 +268,11 @@ class TestGetPhoto:
 # ========================
 
 class TestDeletePhoto:
-    def test_delete_photo(self, client, sample_image_bytes):
+    def test_delete_photo(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -281,10 +295,11 @@ class TestDeletePhoto:
 # ========================
 
 class TestQrCode:
-    def test_generate_qr(self, client):
+    def test_generate_qr(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "QR тест",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
 
@@ -303,7 +318,7 @@ class TestQrCode:
 # ========================
 
 class TestFullWorkflow:
-    def test_create_upload_view_delete(self, client, sample_image_bytes):
+    def test_create_upload_view_delete(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "Полный workflow",
             "description": "Тест полного цикла",
@@ -313,6 +328,7 @@ class TestFullWorkflow:
                 {"step_number": 3, "description": "Проверка", "duration_sec": 30},
                 {"step_number": 4, "description": "Завершение", "duration_sec": 15},
             ],
+            "collection_ids": [str(test_collection.id)],
         })
         assert create_resp.status_code == 201
         opl_id = create_resp.json()["id"]
@@ -354,14 +370,16 @@ class TestFullWorkflow:
 # ========================
 
 class TestSearchOpls:
-    def test_search_by_title(self, client):
+    def test_search_by_title(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "Замена ленты",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         client.post("/api/opls/", json={
             "title": "Проверка масла",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/?title=ленты")
         assert resp.status_code == 200
@@ -369,16 +387,18 @@ class TestSearchOpls:
         assert len(data) == 1
         assert data[0]["title"] == "Замена ленты"
 
-    def test_search_by_description(self, client):
+    def test_search_by_description(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "A",
             "description": "Инструкция по замене",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         client.post("/api/opls/", json={
             "title": "B",
             "description": "Инструкция по настройке",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/?description=замене")
         assert resp.status_code == 200
@@ -386,29 +406,32 @@ class TestSearchOpls:
         assert len(data) == 1
         assert data[0]["title"] == "A"
 
-    def test_search_case_insensitive(self, client):
+    def test_search_case_insensitive(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "Replacement Packaging",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/?title=replacement")
         data = resp.json()["items"]
         assert len(data) == 1
 
-    def test_search_no_match(self, client):
+    def test_search_no_match(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "Test",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/?title=xyz_nonexistent")
         data = resp.json()["items"]
         assert len(data) == 0
 
-    def test_search_combined_or(self, client):
+    def test_search_combined_or(self, client, test_collection):
         client.post("/api/opls/", json={
             "title": "Title A",
             "description": "Desc B",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.get("/api/opls/?title=Title A&description=Desc B")
         data = resp.json()["items"]
@@ -420,10 +443,11 @@ class TestSearchOpls:
 # ========================
 
 class TestPatchOpl:
-    def test_patch_title(self, client):
+    def test_patch_title(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "Old title",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.patch(f"/api/opls/{opl_id}", json={"title": "New title"})
@@ -432,20 +456,22 @@ class TestPatchOpl:
         assert data["title"] == "New title"
         assert data["updated_at"] is not None
 
-    def test_patch_description(self, client):
+    def test_patch_description(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.patch(f"/api/opls/{opl_id}", json={"description": "New desc"})
         assert resp.status_code == 200
         assert resp.json()["description"] == "New desc"
 
-    def test_patch_both(self, client):
+    def test_patch_both(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.patch(f"/api/opls/{opl_id}", json={"title": "New T", "description": "New D"})
@@ -464,10 +490,11 @@ class TestPatchOpl:
 # ========================
 
 class TestPatchStep:
-    def test_patch_step_description(self, client):
+    def test_patch_step_description(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "Old desc", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         step_id = create_resp.json()["steps"][0]["id"]
         resp = client.patch(f"/api/opls/{create_resp.json()['id']}/steps/{step_id}",
@@ -475,10 +502,11 @@ class TestPatchStep:
         assert resp.status_code == 200
         assert resp.json()["description"] == "New desc"
 
-    def test_patch_step_duration(self, client):
+    def test_patch_step_duration(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 10}],
+            "collection_ids": [str(test_collection.id)],
         })
         step_id = create_resp.json()["steps"][0]["id"]
         resp = client.patch(f"/api/opls/{create_resp.json()['id']}/steps/{step_id}",
@@ -486,10 +514,11 @@ class TestPatchStep:
         assert resp.status_code == 200
         assert resp.json()["duration_sec"] == 60
 
-    def test_patch_step_nonexistent(self, client):
+    def test_patch_step_nonexistent(self, client, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         resp = client.patch(f"/api/opls/{create_resp.json()['id']}/steps/{uuid.uuid4()}",
                             json={"description": "x"})
@@ -501,10 +530,11 @@ class TestPatchStep:
 # ========================
 
 class TestReplacePhoto:
-    def test_replace_photo(self, client, sample_image_bytes):
+    def test_replace_photo(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         step_id = create_resp.json()["steps"][0]["id"]
@@ -533,10 +563,11 @@ class TestReplacePhoto:
         assert get_resp.status_code == 200
         assert get_resp.content == new_bytes
 
-    def test_replace_photo_nonexistent(self, client, sample_image_bytes):
+    def test_replace_photo_nonexistent(self, client, sample_image_bytes, test_collection):
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         with BytesIO(sample_image_bytes) as f:
             resp = client.put(
@@ -584,12 +615,13 @@ class TestTags:
         resp = client.delete(f"/api/opls/tags/{uuid.uuid4()}")
         assert resp.status_code == 404
 
-    def test_link_tags_to_opl(self, client):
+    def test_link_tags_to_opl(self, client, test_collection):
         tag1 = client.post(f"/api/opls/tags", json={"name": "T1", "color": "#111"}).json()
         tag2 = client.post(f"/api/opls/tags", json={"name": "T2", "color": "#222"}).json()
         create_resp = client.post("/api/opls/", json={
             "title": "OPL с тегами",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         resp = client.post(f"/api/opls/{opl_id}/tags", json={"tag_ids": [tag1["id"], tag2["id"]]})
@@ -599,12 +631,13 @@ class TestTags:
         names = sorted([t["name"] for t in data["tags"]])
         assert names == ["T1", "T2"]
 
-    def test_link_tags_replaces_existing(self, client):
+    def test_link_tags_replaces_existing(self, client, test_collection):
         tag1 = client.post(f"/api/opls/tags", json={"name": "T1"}).json()
         tag2 = client.post(f"/api/opls/tags", json={"name": "T2"}).json()
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         client.post(f"/api/opls/{opl_id}/tags", json={"tag_ids": [tag1["id"]]})
@@ -613,24 +646,26 @@ class TestTags:
         assert len(resp.json()["tags"]) == 1
         assert resp.json()["tags"][0]["name"] == "T2"
 
-    def test_create_opl_with_tags(self, client):
+    def test_create_opl_with_tags(self, client, test_collection):
         tag = client.post(f"/api/opls/tags", json={"name": "Старт"}).json()
         resp = client.post("/api/opls/", json={
             "title": "OPL с тегами",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
             "tags": [tag["id"]],
+            "collection_ids": [str(test_collection.id)],
         })
         assert resp.status_code == 201
         data = resp.json()
         assert len(data["tags"]) == 1
         assert data["tags"][0]["name"] == "Старт"
 
-    def test_tags_appear_in_list(self, client):
+    def test_tags_appear_in_list(self, client, test_collection):
         tag = client.post(f"/api/opls/tags", json={"name": "Лист"}).json()
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
             "tags": [tag["id"]],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         client.post(f"/api/opls/{opl_id}/tags", json={"tag_ids": [tag["id"]]})
@@ -645,13 +680,14 @@ class TestTags:
         resp = client.post(f"/api/opls/{uuid.uuid4()}/tags", json={"tag_ids": [tag["id"]]})
         assert resp.status_code == 404
 
-    def test_tags_cascade_delete(self, client, db_session):
+    def test_tags_cascade_delete(self, client, db_session, test_collection):
         from app.models.opl import OplTagLink
         tag = client.post(f"/api/opls/tags", json={"name": "Cascade T"}).json()
         create_resp = client.post("/api/opls/", json={
             "title": "T",
             "steps": [{"step_number": 1, "description": "d", "duration_sec": 5}],
             "tags": [tag["id"]],
+            "collection_ids": [str(test_collection.id)],
         })
         opl_id = create_resp.json()["id"]
         client.delete(f"/api/opls/{opl_id}")

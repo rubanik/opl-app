@@ -115,6 +115,11 @@ def list_opls(
 
 @router.post("/", response_model=OplOut, status_code=201)
 def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Depends(get_current_user)):
+    for coll_id in body.collection_ids:
+        coll = db.get(OplCollection, coll_id)
+        if not coll:
+            raise HTTPException(404, f"Коллекция {coll_id} не найдена")
+
     opl = Opl(title=body.title, description=body.description, created_by=_user.id)
     db.add(opl)
     db.flush()
@@ -131,6 +136,8 @@ def create_opl(body: OplCreate, db: Session = Depends(get_db), _user: User = Dep
 
     for tag_id in body.tags:
         db.add(OplTagLink(opl_id=opl.id, tag_id=tag_id))
+
+    add_opl_to_collections(db, opl.id, body.collection_ids)
 
     db.commit()
     db.refresh(opl)
@@ -492,7 +499,11 @@ def remove_opl_from_collection_route(
     opl = db.get(Opl, opl_id)
     if not opl:
         raise HTTPException(404, "Инструкция не найдена")
-    remove_opl_from_collection(db, collection_id, opl_id)
+    found, is_last = remove_opl_from_collection(db, collection_id, opl_id)
+    if not found:
+        raise HTTPException(404, "Связь не найдена")
+    if is_last:
+        raise HTTPException(400, "Нельзя убрать последнюю коллекцию у инструкции")
     db.commit()
     collections = get_opl_collections(db, opl_id)
     return {"ok": True, "collections": [{"id": c.id, "title": c.title} for c in collections]}

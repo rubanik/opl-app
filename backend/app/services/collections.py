@@ -45,13 +45,23 @@ def update_collection(
     return coll
 
 
-def delete_collection(db: Session, collection_id: uuid.UUID) -> bool:
+def delete_collection(db: Session, collection_id: uuid.UUID) -> tuple[bool, bool]:
     coll = db.get(OplCollection, collection_id)
     if not coll:
-        return False
-    db.delete(coll)
-    db.flush()
-    return True
+        return (False, False)
+    orphaned = db.execute(
+        select(OplCollectionLink.opl_id).group_by(OplCollectionLink.opl_id).having(
+            func.count(OplCollectionLink.collection_id) == 1
+        )
+    ).scalars().all()
+    orphans = False
+    if orphaned:
+        links_in_coll = db.execute(
+            select(OplCollectionLink).where(OplCollectionLink.collection_id == collection_id)
+        ).scalars().all()
+        orphaned_in_coll = any(l.opl_id in orphaned for l in links_in_coll)
+        orphans = orphaned_in_coll
+    return (True, orphans)
 
 
 def add_opl_to_collection(db: Session, collection_id: uuid.UUID, opl_id: uuid.UUID) -> Optional[OplCollectionLink]:
@@ -69,7 +79,7 @@ def add_opl_to_collection(db: Session, collection_id: uuid.UUID, opl_id: uuid.UU
     return link
 
 
-def remove_opl_from_collection(db: Session, collection_id: uuid.UUID, opl_id: uuid.UUID) -> bool:
+def remove_opl_from_collection(db: Session, collection_id: uuid.UUID, opl_id: uuid.UUID) -> tuple[bool, bool]:
     link = db.execute(
         select(OplCollectionLink).where(
             OplCollectionLink.collection_id == collection_id,
@@ -77,10 +87,17 @@ def remove_opl_from_collection(db: Session, collection_id: uuid.UUID, opl_id: uu
         )
     ).scalar_one_or_none()
     if not link:
-        return False
+        return (False, False)
+    remaining = db.execute(
+        select(func.count(OplCollectionLink.opl_id)).where(
+            OplCollectionLink.opl_id == opl_id,
+            OplCollectionLink.collection_id != collection_id,
+        )
+    ).scalar()
+    is_last = remaining == 0
     db.delete(link)
     db.flush()
-    return True
+    return (True, is_last)
 
 
 def get_opl_collections(db: Session, opl_id: uuid.UUID) -> list[OplCollection]:

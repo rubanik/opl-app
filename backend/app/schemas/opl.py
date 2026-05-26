@@ -78,6 +78,7 @@ class OplCreate(BaseModel):
     description: Optional[str] = None
     steps: list[StepCreate]
     tags: list[uuid.UUID] = []
+    collection_ids: list[uuid.UUID] = Field(..., min_length=1)
 
 
 class OplOut(BaseModel):

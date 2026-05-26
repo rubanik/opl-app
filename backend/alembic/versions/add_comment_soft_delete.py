@@ -10,7 +10,7 @@ from sqlalchemy import inspect
 
 
 revision = "add_comment_soft_delete"
-down_revision = "add_opl_comments"
+down_revision = "001_initial"
 branch_labels = None
 depends_on = None
 

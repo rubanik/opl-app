@@ -6,6 +6,7 @@ Create Date: 2026-05-25
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 revision = "add_comment_soft_delete"
@@ -15,7 +16,11 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column("opl_comments", sa.Column("deleted_at", sa.DateTime(), nullable=True))
+    conn = op.get_bind()
+    inspector = inspect(conn)
+    columns = [col["name"] for col in inspector.get_columns("opl_comments")]
+    if "deleted_at" not in columns:
+        op.add_column("opl_comments", sa.Column("deleted_at", sa.DateTime(), nullable=True))
 
 
 def downgrade():
